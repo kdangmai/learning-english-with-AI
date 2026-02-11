@@ -35,7 +35,7 @@ const grammarSchema = new mongoose.Schema({
     default: false
   },
   completedAt: Date,
-  
+
   // Learning data
   lessonsCompleted: {
     type: Number,
@@ -49,7 +49,7 @@ const grammarSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  
+
   createdAt: {
     type: Date,
     default: Date.now
@@ -61,5 +61,7 @@ const grammarSchema = new mongoose.Schema({
 });
 
 grammarSchema.index({ userId: 1, tenseName: 1 });
+grammarSchema.index({ userId: 1, completed: 1 });
+grammarSchema.index({ userId: 1, updatedAt: -1 });
 
 module.exports = mongoose.model('Grammar', grammarSchema);

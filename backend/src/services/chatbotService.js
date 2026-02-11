@@ -504,19 +504,19 @@ class ChatbotService {
     const model = await this.getConfig('grammar_model');
 
     const operation = async () => {
-      const prompt = `Bạn là chuyên gia ngữ pháp tiếng Anh. Hãy tạo ${count} bài tập về thì "${tenseName}" gồm 4 loại: 'mcq', 'fill', 'find_error', 'reorder'.
+      const prompt = `Bạn là chuyên gia ngữ pháp tiếng Anh. Hãy tạo ${count} bài tập về thì "${tenseName}" gồm 5 loại: 'mcq' (trắc nghiệm), 'fill' (điền từ), 'find_error' (tìm lỗi sai), 'reorder' (sắp xếp từ), 'rewrite' (viết lại câu sao cho nghĩa không đổi).
         
         QUAN TRỌNG: Trả về định dạng TEXT thuần (không markdown cầu kỳ), các bài tập cách nhau bởi "---".
         Cấu trúc MỖI bài tập phải CHÍNH XÁC như sau:
         
-        TYPE: [mcq | fill | find_error | reorder]
+        TYPE: [mcq | fill | find_error | reorder | rewrite]
         QUESTION: [Nội dung câu hỏi]
-        OPTIONS: [A | B | C | D (mcq) HOẶC chừa trống (fill/find_error) HOẶC list từ (reorder)]
+        OPTIONS: [A | B | C | D (mcq) HOẶC chừa trống (fill/find_error/rewrite) HOẶC list từ (reorder)]
         ANSWER: [Đáp án đúng]
         EXPLAIN: [Giải thích ngắn gọn]
         ---
         
-        VÍ DỤ CỤ THỂ CHO TỪNG LOẠI:
+        YÊU CẦU CỤ THỂ CHO TỪNG LOẠI:
         
         1. MCQ:
         TYPE: mcq
@@ -532,19 +532,27 @@ class ChatbotService {
         ANSWER: plays
         EXPLAIN: Hiện tại đơn.
 
-        3. Find Error (QUAN TRỌNG: Hãy dùng dấu | để phân tách các từ hoặc cụm từ trong câu để người dùng chọn. Một trong số đó là lỗi sai):
+        3. Find Error (QUAN TRỌNG: Dùng dấu | để tách các phần. Dấu chấm câu nên dính liền với từ trước nó trừ khi chính nó là lỗi sai):
         TYPE: find_error
-        QUESTION: She | plays | tennis | on | Sunday | yesterday .
+        QUESTION: She | plays | tennis | on | Sunday | yesterday.
         OPTIONS:
         ANSWER: yesterday
         EXPLAIN: "plays" là thì hiện tại, không dùng "yesterday".
+        (Lưu ý: Nếu lỗi sai là dấu chấm, hãy để riêng: She | plays | tennis | . | yesterday)
 
-        4. Reorder (Sắp xếp từ):
+        4. Reorder (Sắp xếp từ - QUAN TRỌNG: Giữ nguyên viết hoa/thường của từ đầu câu trong list OPTIONS):
         TYPE: reorder
         QUESTION: Sắp xếp câu sau:
         OPTIONS: She | plays | tennis | every | day
         ANSWER: She plays tennis every day
         EXPLAIN: Cấu trúc S + V + O.
+
+        5. Rewrite (Viết lại câu):
+        TYPE: rewrite
+        QUESTION: I started learning English 5 years ago. (Dùng Present Perfect)
+        OPTIONS:
+        ANSWER: I have learned English for 5 years
+        EXPLAIN: Chuyển từ Past Simple sang Present Perfect.
         ---`;
 
       const response = await this.sendToChatbot(prompt, '', model);
@@ -566,6 +574,7 @@ class ChatbotService {
           else if (block.includes('Fill')) type = 'fill';
           else if (block.includes('Find Error') || block.includes('Tìm Lỗi')) type = 'find_error';
           else if (block.includes('Reorder') || block.includes('Sắp Xếp')) type = 'reorder';
+          else if (block.includes('Rewrite') || block.includes('Viết Lại')) type = 'rewrite';
         }
 
         let question = getLine('QUESTION') || getLine('Câu hỏi');
@@ -584,6 +593,7 @@ class ChatbotService {
         else if (type.includes('fill')) type = 'fill';
         else if (type.includes('error')) type = 'find_error';
         else if (type.includes('reorder')) type = 'reorder';
+        else if (type.includes('rewrite')) type = 'rewrite';
 
         const exercise = { type, question, correctAnswer: answer, explanation };
 
@@ -617,6 +627,8 @@ class ChatbotService {
           if (question.includes('|')) {
             // Convert | separated parts to **wrapped** for frontend
             const raw = question.replace(/\*\*/g, '');
+            // Logic change: Don't just wrap everything. Only wrap parts that are separated.
+            // If there's content like "word ." -> "word" and "." are distinct.
             exercise.question = raw.split('|').filter(s => s.trim()).map(s => `**${s.trim()}**`).join(' ');
           } else if (question.includes('**')) {
             exercise.question = question;
@@ -624,6 +636,9 @@ class ChatbotService {
             // Fallback: split by space
             exercise.question = question.split(' ').map(w => `**${w}**`).join(' ');
           }
+          exercise.options = {};
+        } else if (type === 'rewrite') {
+          // Rewrite type usually has no options, just input
           exercise.options = {};
         }
 
@@ -772,8 +787,11 @@ class ChatbotService {
 
       console.log("[ChatbotService] Pronunciation Raw:", response);
       const lines = response.split('\n');
+      let currentSection = null;
+
       for (const line of lines) {
         const trimmed = line.trim();
+        if (!trimmed) continue;
 
         // Regex for flexible parsing
         const transcriptMatch = trimmed.match(/^(?:\*\*|#|-|\s)*TRANSCRIPT\s*:?\s*(.*)/i);
@@ -783,11 +801,15 @@ class ChatbotService {
 
         if (transcriptMatch) {
           result.transcript = transcriptMatch[1].trim();
+          currentSection = null;
         } else if (scoreMatch) {
           result.score = parseInt(scoreMatch[1], 10);
+          currentSection = null;
         } else if (feedbackMatch) {
           result.feedback = feedbackMatch[1].trim();
+          currentSection = 'feedback';
         } else if (mistakeMatch) {
+          currentSection = null;
           // Parse: word -> soundedLike -> advice
           // Remove Markdown from the content string if present
           const content = mistakeMatch[1].trim().replace(/\*\*/g, '');
@@ -795,6 +817,9 @@ class ChatbotService {
           if (parts.length >= 3) {
             result.mistakes.push({ word: parts[0], soundedLike: parts[1], advice: parts[2] });
           }
+        } else if (currentSection === 'feedback') {
+          // If we are in feedback section and line is not a header, append it
+          result.feedback += (result.feedback ? "\n" : "") + trimmed;
         }
       }
       return result;

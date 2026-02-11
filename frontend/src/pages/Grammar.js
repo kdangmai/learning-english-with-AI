@@ -176,24 +176,31 @@ export function Grammar() {
     const currentQ = exercises[currentQuestionIndex];
     let isCorrect = false;
 
+    // Generic normalizer (removes special chars, lowercases)
     const norm = (str) => str?.toString().toLowerCase().trim().replace(/[^a-z0-9 ]/g, '');
+    // Strict normalizer for reorder (removes spaces too to avoid "word ." vs "word." mismatches)
+    const normStrict = (str) => str?.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
 
     if (currentQ.type === 'mcq') {
       isCorrect = selectedAnswer === currentQ.correctAnswer;
     } else if (currentQ.type === 'fill') {
       isCorrect = norm(selectedAnswer) === norm(currentQ.correctAnswer);
-    } else if (currentQ.type === 'find_error') {
-      isCorrect = selectedAnswer === currentQ.correctAnswer;
-    } else if (currentQ.type === 'reorder') {
+    } else if (currentQ.type === 'rewrite') {
+      // Rewrite allows slight variations usually, but we start with strict norm vs norm
       isCorrect = norm(selectedAnswer) === norm(currentQ.correctAnswer);
+    } else if (currentQ.type === 'find_error') {
+      // Trim both to be safe against accidental spaces
+      isCorrect = (selectedAnswer || '').trim() === (currentQ.correctAnswer || '').trim();
+    } else if (currentQ.type === 'reorder') {
+      // Use strict norm to ignore spacing issues around punctuation
+      isCorrect = normStrict(selectedAnswer) === normStrict(currentQ.correctAnswer);
     } else if (currentQ.type === 'fill' || !currentQ.options) {
-      // Simple string comparison for fill-in-the-blank
       isCorrect = selectedAnswer && selectedAnswer.trim().toLowerCase() === currentQ.correctAnswer.toLowerCase();
     }
 
     setFeedback({
       isCorrect,
-      message: isCorrect ? 'Correct!' : 'Incorrect'
+      message: isCorrect ? 'Chính xác! 🎉' : 'Chưa đúng, thử lại nhé!'
     });
 
     if (isCorrect) {
@@ -210,7 +217,45 @@ export function Grammar() {
 
     const nextIdx = currentQuestionIndex + 1;
     setCurrentQuestionIndex(nextIdx);
-    // useEffect will handle setting reorderWords for the next question
+  };
+
+  const handleFinishSession = async () => {
+    try {
+      // Construct a simple answers array for backend stats
+      // Since we didn't track individual correctness in state, we approximate based on score
+      // Correct: first 'score' items, Incorrect: the rest.
+      const total = exercises.length;
+      const answers = [];
+      for (let i = 0; i < total; i++) {
+        answers.push({ isCorrect: i < score });
+      }
+
+      const response = await fetch('/api/grammar/exercise', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          tenseName: selectedTense,
+          answers // pass constructed answers
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // Refresh tenses to update progress bar on dashboard/selection
+        fetchTenses();
+        // Go back to election
+        setSelectedTense(null);
+        resetExercise();
+      } else {
+        showError(data.message || 'Lỗi lưu kết quả');
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      showError('Không thể lưu kết quả');
+    }
   };
 
   const getTenseProgress = (tenseName) => {
@@ -242,6 +287,32 @@ export function Grammar() {
                 </button>
               );
             })}
+          </div>
+        </div>
+      );
+    }
+
+    if (q.type === 'rewrite') {
+      return (
+        <div className="rewrite-area">
+          <p className="question-text">{q.question}</p>
+          <div style={{ marginTop: '20px' }}>
+            <textarea
+              className="fill-input"
+              value={selectedAnswer || ''}
+              onChange={(e) => handleAnswerChange(e.target.value)}
+              disabled={!!feedback}
+              placeholder="Nhập câu viết lại..."
+              style={{
+                width: '100%',
+                padding: '12px',
+                fontSize: '1.1rem',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                minHeight: '80px',
+                fontFamily: 'inherit'
+              }}
+            />
           </div>
         </div>
       );
@@ -319,11 +390,12 @@ export function Grammar() {
         <div className="error-find-area">
           <p className="question-text">
             {parts.map((part, i) => {
-              if (i % 2 === 1) {
+              if (i % 2 === 1) { // Captured part
                 const isSelected = selectedAnswer === part;
                 let className = 'error-hightlight';
                 if (feedback) {
-                  if (part === q.correctAnswer) className += ' correct-error';
+                  // Compare trimmed to handle spacing issues
+                  if (part.trim() === (q.correctAnswer || '').trim()) className += ' correct-error';
                   else if (isSelected) className += ' wrong-error';
                 } else if (isSelected) {
                   className += ' selected-error';
@@ -334,6 +406,7 @@ export function Grammar() {
                   </span>
                 );
               }
+              // Render space correctly
               return <span key={i}>{part}</span>;
             })}
           </p>
@@ -386,77 +459,7 @@ export function Grammar() {
       );
     }
 
-    if (q.type === 'reorder') {
-      const isWordsEmpty = !reorderWords || reorderWords.length === 0;
-
-      return (
-        <div className="reorder-area">
-          <p className="question-text">{q.question}</p>
-
-          <div className="constructed-sentence">
-            {selectedAnswer ? (
-              selectedAnswer.split(' ').map((w, i) => (
-                <span key={i} className="word-chip used" onClick={() => {
-                  if (feedback) return;
-                  const newAns = selectedAnswer.split(' ');
-                  newAns.splice(i, 1);
-                  setSelectedAnswer(newAns.join(' '));
-                }}>{w}</span>
-              ))
-            ) : <span className="placeholder">{feedback ? '' : 'Bấm vào từ bên dưới để ghép câu...'}</span>}
-          </div>
-
-          {selectedAnswer && !feedback && (
-            <div style={{ textAlign: 'right', marginTop: '5px' }}>
-              <button
-                onClick={() => setSelectedAnswer(null)}
-                style={{ fontSize: '0.8rem', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                Reset Sentence
-              </button>
-            </div>
-          )}
-
-          <div className="words-pool">
-            {isWordsEmpty ? (
-              <div style={{ textAlign: 'center', width: '100%', padding: '20px' }}>
-                <p style={{ color: '#94a3b8', fontStyle: 'italic', marginBottom: '10px' }}>Đang tải từ vựng...</p>
-                {/* Fallback button to manually trigger shuffle from answer */}
-                <button
-                  onClick={() => {
-                    const words = q.words && q.words.length > 0 ? q.words : (q.correctAnswer || '').split(' ');
-                    setReorderWords(words.sort(() => Math.random() - 0.5));
-                  }}
-                  style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#e2e8f0', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
-                >
-                  Reload Words
-                </button>
-              </div>
-            ) : (
-              reorderWords.map((w, i) => {
-                // Determine usage count safely
-                const currentSelection = (selectedAnswer || '').trim();
-                const usedCount = currentSelection ? currentSelection.split(' ').filter(x => x === w).length : 0;
-                const totalCount = reorderWords.filter(x => x === w).length;
-
-                if (usedCount >= totalCount) return null;
-
-                return (
-                  <span key={i} className="word-chip" onClick={() => {
-                    if (feedback) return;
-                    setSelectedAnswer(selectedAnswer ? selectedAnswer + ' ' + w : w);
-                  }}>
-                    {w}
-                  </span>
-                );
-              })
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    return <div>Unknown type</div>;
+    return <div>Unknown type: {q.type}</div>;
   };
 
   return (
@@ -538,6 +541,7 @@ export function Grammar() {
                                 </p>
                                 <p className="explanation">
                                   <strong>Đáp án đúng: </strong>
+                                  {/* Using style for clear visibility */}
                                   <span style={{ color: '#16a34a', fontWeight: 'bold' }}>{exercises[currentQuestionIndex].correctAnswer}</span>
                                   <br />
                                   <strong>Giải thích: </strong>
@@ -580,9 +584,22 @@ export function Grammar() {
                                 Accuracy: {exercises.length > 0 ? Math.round((score / exercises.length) * 100) : 0}%
                               </div>
 
-                              <button className="reset-btn" onClick={resetExercise}>
-                                Practice Again 🔄
-                              </button>
+                              <div style={{ display: 'flex', gap: '10px', marginTop: '20px', width: '100%' }}>
+                                <button
+                                  className="reset-btn"
+                                  onClick={resetExercise}
+                                  style={{ flex: 1, background: '#f1f5f9', color: '#475569' }}
+                                >
+                                  Làm Lại 🔄
+                                </button>
+                                <button
+                                  className="reset-btn"
+                                  onClick={handleFinishSession}
+                                  style={{ flex: 1, background: '#3b82f6', color: 'white' }}
+                                >
+                                  Hoàn Thành ✅
+                                </button>
+                              </div>
                             </div>
                           </div>
                         )}

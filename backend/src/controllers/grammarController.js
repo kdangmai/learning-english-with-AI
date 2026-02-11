@@ -164,10 +164,14 @@ exports.submitExercise = async (req, res) => {
     grammar.exercisesCorrect += correctCount;
 
     // Update progress
+    // Update progress
+    // Assume 15 questions per exercise on average (as per generateGrammarExercises)
+    // Capping at 100 to avoid validation error
     if (grammar.exercisesAttempted > 0) {
-      grammar.progress = Math.round(
-        (grammar.exercisesCorrect / (grammar.exercisesAttempted * 5)) * 100
+      const p = Math.round(
+        (grammar.exercisesCorrect / (grammar.exercisesAttempted * 15)) * 100
       );
+      grammar.progress = p > 100 ? 100 : p;
     }
 
     // Mark as completed if progress reaches 80%

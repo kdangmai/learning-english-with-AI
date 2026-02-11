@@ -281,42 +281,61 @@ exports.reviewWord = async (req, res) => {
 
 
 /**
+ * Learning steps in minutes for Anki-style learning phase
+ * Step 0 -> 1 min, Step 1 -> 10 min, then graduate to review (day-based)
+ */
+const LEARNING_STEPS_MINUTES = [1, 10];
+
+/**
  * Calculate next SRS intervals for display on buttons
+ * Returns intervals in MINUTES for learning phase, DAYS for review phase
  */
 function calculateNextIntervals(word) {
   const srs = word.srs || { step: 0, interval: 0, easeFactor: 2.5 };
-  let { step, interval, easeFactor } = srs;
+  const { step, interval, easeFactor } = srs;
 
-  // Calculate what each button would produce
-  let hardInterval, mediumInterval, easyInterval;
+  const isLearning = step < LEARNING_STEPS_MINUTES.length;
 
-  // Hard
-  hardInterval = step === 0 ? 1 : Math.max(1, Math.round(interval * 0.5));
+  let againInterval, hardInterval, goodInterval, easyInterval;
 
-  // Medium
-  if (step === 0) {
-    mediumInterval = 1;
-  } else if (step === 1) {
-    mediumInterval = 3;
+  if (isLearning) {
+    // LEARNING PHASE (minute-based)
+    againInterval = { value: LEARNING_STEPS_MINUTES[0], unit: 'min' };          // Again: restart Learning Step 1
+    hardInterval = { value: LEARNING_STEPS_MINUTES[step] || 1, unit: 'min' };   // Hard: repeat current step
+    goodInterval = step + 1 < LEARNING_STEPS_MINUTES.length
+      ? { value: LEARNING_STEPS_MINUTES[step + 1], unit: 'min' }                 // Good: next learning step
+      : { value: 1, unit: 'day' };                                                // Good: graduate to 1 day
+    easyInterval = { value: 4, unit: 'day' };                                    // Easy: skip to 4 days
   } else {
-    mediumInterval = Math.round(Math.max(1, interval * easeFactor));
-  }
-
-  // Easy
-  if (step === 0) {
-    easyInterval = 4;
-  } else {
-    easyInterval = Math.round(Math.max(1, (interval || 1) * easeFactor * 1.3));
+    // REVIEW PHASE (day-based)
+    const currentInterval = Math.max(1, interval);
+    againInterval = { value: LEARNING_STEPS_MINUTES[0], unit: 'min' };            // Again: back to learning
+    hardInterval = { value: Math.max(1, Math.round(currentInterval * 1.2)), unit: 'day' };
+    goodInterval = { value: Math.round(currentInterval * easeFactor), unit: 'day' };
+    easyInterval = { value: Math.round(currentInterval * easeFactor * 1.3), unit: 'day' };
   }
 
   return {
+    again: formatInterval(againInterval),
     hard: formatInterval(hardInterval),
-    medium: formatInterval(mediumInterval),
+    good: formatInterval(goodInterval),
     easy: formatInterval(easyInterval)
   };
 }
 
-function formatInterval(days) {
+function formatInterval(iv) {
+  if (typeof iv === 'number') {
+    // Legacy: treat as days
+    return formatDays(iv);
+  }
+  if (iv.unit === 'min') {
+    if (iv.value < 60) return `${iv.value} phút`;
+    return `${Math.round(iv.value / 60)} giờ`;
+  }
+  return formatDays(iv.value);
+}
+
+function formatDays(days) {
   if (days < 1) return '< 1 ngày';
   if (days === 1) return '1 ngày';
   if (days < 7) return `${days} ngày`;
@@ -333,12 +352,18 @@ function formatInterval(days) {
 }
 
 /**
- * SRS Review Word (SM-2/Anki Algorithm)
+ * SRS Review Word (SM-2/Anki-style Algorithm with 4 buttons)
+ * Ratings: 'again' (forgot), 'hard', 'good', 'easy'
+ * Learning Phase: step 0 -> 1min, step 1 -> 10min, then graduate to review
+ * Review Phase: day-based intervals with ease factor
  */
 exports.srsReview = async (req, res) => {
   try {
-    const { wordId, rating } = req.body; // rating: 'hard', 'medium', 'easy'
+    const { wordId, rating } = req.body; // rating: 'again', 'hard', 'good', 'easy'
     const userId = req.userId;
+
+    // Support legacy 'medium' rating -> map to 'good'
+    const normalizedRating = rating === 'medium' ? 'good' : rating;
 
     const word = await Vocabulary.findOne({ _id: wordId, userId });
     if (!word) return res.status(404).json({ success: false, message: 'Word not found' });
@@ -349,63 +374,79 @@ exports.srsReview = async (req, res) => {
     }
 
     let { step, interval, easeFactor } = word.srs;
+    const isLearning = step < LEARNING_STEPS_MINUTES.length;
+    let dueDateMs;
 
-    if (rating === 'hard') {
-      // Hard: Reduce interval, decrease ease factor
-      if (step === 0) {
-        interval = 1; // Review again tomorrow
-      } else {
-        interval = Math.max(1, Math.round(interval * 0.5)); // Halve the interval
-      }
-      step = Math.max(0, step); // Don't reset step completely
+    if (normalizedRating === 'again') {
+      // AGAIN: Reset to learning phase, step 0
+      step = 0;
+      interval = 0;
       easeFactor = Math.max(1.3, easeFactor - 0.2);
+      dueDateMs = Date.now() + LEARNING_STEPS_MINUTES[0] * 60 * 1000; // 1 minute
       word.mastery.status = 'learning';
       word.mastery.incorrectCount = (word.mastery.incorrectCount || 0) + 1;
-    } else if (rating === 'medium') {
-      // Medium/Good: Normal progression
-      if (step === 0) {
-        step = 1;
-        interval = 1; // 1 day
-      } else if (step === 1) {
-        step = 2;
-        interval = 3; // 3 days
+
+    } else if (normalizedRating === 'hard') {
+      if (isLearning) {
+        // Hard in learning: repeat current step
+        dueDateMs = Date.now() + (LEARNING_STEPS_MINUTES[step] || 1) * 60 * 1000;
       } else {
-        // Graduated review: multiply by ease factor
-        if (interval < 1) interval = 1;
-        interval = Math.round(interval * easeFactor);
+        // Hard in review: small increase (1.2x), ease penalty
+        interval = Math.max(1, Math.round(interval * 1.2));
+        easeFactor = Math.max(1.3, easeFactor - 0.15);
+        dueDateMs = Date.now() + interval * 24 * 60 * 60 * 1000;
+      }
+      word.mastery.correctCount = (word.mastery.correctCount || 0) + 1;
+      // Keep current mastery status in learning, update in review
+      if (!isLearning) {
+        if (step >= 5) word.mastery.status = 'mastered';
+        else if (step >= 3) word.mastery.status = 'known';
+        else word.mastery.status = 'learning';
+      }
+
+    } else if (normalizedRating === 'good') {
+      if (isLearning) {
+        // Good in learning: advance to next step
+        step += 1;
+        if (step >= LEARNING_STEPS_MINUTES.length) {
+          // Graduate! First review in 1 day
+          interval = 1;
+          dueDateMs = Date.now() + 1 * 24 * 60 * 60 * 1000;
+        } else {
+          dueDateMs = Date.now() + LEARNING_STEPS_MINUTES[step] * 60 * 1000;
+        }
+      } else {
+        // Good in review: normal progression
+        interval = Math.max(1, Math.round(Math.max(1, interval) * easeFactor));
+        step += 1;
+        dueDateMs = Date.now() + interval * 24 * 60 * 60 * 1000;
+      }
+      word.mastery.correctCount = (word.mastery.correctCount || 0) + 1;
+
+      // Update mastery status
+      if (step >= 5) word.mastery.status = 'mastered';
+      else if (step >= LEARNING_STEPS_MINUTES.length) word.mastery.status = 'known';
+      else word.mastery.status = 'learning';
+
+    } else if (normalizedRating === 'easy') {
+      if (isLearning) {
+        // Easy in learning: graduate immediately with 4-day interval
+        step = LEARNING_STEPS_MINUTES.length; // Graduate
+        interval = 4;
+      } else {
+        // Easy in review: large boost + ease increase
+        interval = Math.round(Math.max(1, interval) * easeFactor * 1.3);
+        easeFactor = Math.min(3.0, easeFactor + 0.15);
         step += 1;
       }
+      dueDateMs = Date.now() + interval * 24 * 60 * 60 * 1000;
       word.mastery.correctCount = (word.mastery.correctCount || 0) + 1;
 
-      // Update mastery status based on step
-      if (step >= 4) {
-        word.mastery.status = 'mastered';
-      } else if (step >= 2) {
-        word.mastery.status = 'known';
-      } else {
-        word.mastery.status = 'learning';
-      }
-    } else if (rating === 'easy') {
-      // Easy: Fast progression with bonus
-      if (step === 0) {
-        step = 2;
-        interval = 4; // Jump to 4 days
-      } else {
-        if (interval < 1) interval = 1;
-        interval = Math.round(interval * easeFactor * 1.3);
-        easeFactor = Math.min(3.0, easeFactor + 0.15);
-        step += 2;
-      }
-      word.mastery.correctCount = (word.mastery.correctCount || 0) + 1;
-
-      if (step >= 4) {
-        word.mastery.status = 'mastered';
-      } else {
-        word.mastery.status = 'known';
-      }
+      if (step >= 5) word.mastery.status = 'mastered';
+      else word.mastery.status = 'known';
     }
 
-    // Cap interval at 365 days (1 year) for practical purposes
+    // Cap interval at 365 days
     if (interval > 365) interval = 365;
 
     // Update SRS fields
@@ -413,14 +454,14 @@ exports.srsReview = async (req, res) => {
     word.srs.interval = interval;
     word.srs.easeFactor = easeFactor;
     word.srs.lastReviewed = new Date();
-    word.srs.dueDate = new Date(Date.now() + interval * 24 * 60 * 60 * 1000);
+    word.srs.dueDate = new Date(dueDateMs);
 
     // Sync legacy mastery fields
     word.mastery.lastReviewedAt = word.srs.lastReviewed;
     word.mastery.nextReviewAt = word.srs.dueDate;
 
     // Remove "New" flag on successful review
-    if (word.isNewWord && rating !== 'hard') {
+    if (word.isNewWord && normalizedRating !== 'again') {
       word.isNewWord = false;
     }
 

@@ -61,5 +61,6 @@ const sentenceSchema = new mongoose.Schema({
 
 sentenceSchema.index({ userId: 1, createdAt: -1 });
 sentenceSchema.index({ userId: 1, difficulty: 1 });
+sentenceSchema.index({ userId: 1, 'feedback.score': 1 });
 
 module.exports = mongoose.model('Sentence', sentenceSchema);

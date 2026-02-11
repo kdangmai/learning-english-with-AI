@@ -77,5 +77,7 @@ const vocabularySchema = new mongoose.Schema({
 vocabularySchema.index({ userId: 1, word: 1 });
 vocabularySchema.index({ userId: 1, topic: 1 });
 vocabularySchema.index({ userId: 1, 'mastery.status': 1 });
+vocabularySchema.index({ userId: 1, createdAt: -1 });
+vocabularySchema.index({ userId: 1, 'srs.dueDate': 1, 'mastery.status': 1 });
 
 module.exports = mongoose.model('Vocabulary', vocabularySchema);

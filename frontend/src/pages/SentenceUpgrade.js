@@ -8,8 +8,9 @@ export function SentenceUpgrade() {
     const [loading, setLoading] = useState(false);
     const [grammarLevel, setGrammarLevel] = useState('C1');
     const [vocabLevel, setVocabLevel] = useState('C1');
+
     const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-    const { warning: showWarning } = useToast();
+    const { warning: showWarning, error: showError } = useToast();
 
     const handleUpgrade = async () => {
         if (!upgradeInput.trim()) {
@@ -17,6 +18,7 @@ export function SentenceUpgrade() {
             return;
         }
         setLoading(true);
+        setUpgradeResult(null);
         try {
             const response = await fetch('/api/sentences/upgrade', {
                 method: 'POST',
@@ -27,70 +29,124 @@ export function SentenceUpgrade() {
                 body: JSON.stringify({ userAnswer: upgradeInput, grammarLevel, vocabularyLevel: vocabLevel })
             });
             const data = await response.json();
-            setUpgradeResult({
-                upgradedSentence: data.upgradedSentence,
-                improvements: data.improvements
-            });
+
+            if (data.success) {
+                setUpgradeResult({
+                    upgradedSentence: data.upgradedSentence,
+                    improvements: data.improvements
+                });
+            } else {
+                showError(data.message || 'Lỗi khi nâng cấp câu');
+            }
         } catch (error) {
             console.error('Error upgrading:', error);
+            showError('Lỗi kết nối đến server');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="sentence-writing-page">
-            <div className="tabs">
-                <h2>Nâng Cấp Câu</h2>
+        <div className="sentence-page">
+            <div className="sentence-header">
+                <div className="header-content">
+                    <h1>🚀 Nâng Cấp Câu</h1>
+                    <p>Biến câu văn đơn giản thành văn phong bản xứ chuyên nghiệp</p>
+                </div>
             </div>
 
-            <div className="tab-content" style={{ borderTopLeftRadius: '16px' }}>
-                <div className="upgrade-panel">
-                    <div className="input-section full-width">
-                        <div className="options-row" style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Grammar Complexity:</label>
-                                <select value={grammarLevel} onChange={e => setGrammarLevel(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', minWidth: '100px' }}>
-                                    {levels.map(l => <option key={l} value={l}>{l}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Vocabulary Difficulty:</label>
-                                <select value={vocabLevel} onChange={e => setVocabLevel(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', minWidth: '100px' }}>
-                                    {levels.map(l => <option key={l} value={l}>{l}</option>)}
-                                </select>
-                            </div>
+            <div className="sentence-container">
+                {/* Settings Panel */}
+                <div className="settings-panel">
+                    <div className="setting-group">
+                        <label>Mục tiêu Ngữ pháp</label>
+                        <div className="level-pills">
+                            {levels.map((l) => (
+                                <button
+                                    key={l}
+                                    className={`level-pill secondary ${grammarLevel === l ? 'active' : ''}`}
+                                    onClick={() => setGrammarLevel(l)}
+                                >
+                                    {l}
+                                </button>
+                            ))}
                         </div>
-                        <label>Nhập câu hoặc đoạn văn tiếng Anh của bạn:</label>
-                        <textarea
-                            value={upgradeInput}
-                            onChange={(e) => setUpgradeInput(e.target.value)}
-                            placeholder="I want to improve this sentence..."
-                            rows={6}
-                        />
-                        <button className="primary-btn" onClick={handleUpgrade} disabled={loading}>
-                            {loading ? 'Đang nâng cấp...' : 'Nâng Cấp Ngay'}
-                        </button>
                     </div>
 
+                    <div className="setting-group">
+                        <label>Mục tiêu Từ vựng</label>
+                        <div className="level-pills">
+                            {levels.map((l) => (
+                                <button
+                                    key={l}
+                                    className={`level-pill ${vocabLevel === l ? 'active' : ''}`}
+                                    onClick={() => setVocabLevel(l)}
+                                    style={{ '--level-color': '#0ea5e9' }}
+                                >
+                                    {l}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="setting-group">
+                        <label>Hướng dẫn</label>
+                        <p style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: '1.5' }}>
+                            Nhập câu tiếng Anh của bạn vào ô bên phải. AI sẽ viết lại câu đó với ngữ pháp và từ vựng ở cấp độ bạn chọn (mặc định C1).
+                        </p>
+                    </div>
+                </div>
+
+                {/* Workspace */}
+                <div className="workspace-panel">
+                    {/* Input Area */}
+                    <div className="input-card">
+                        <div className="card-label">Câu của bạn</div>
+                        <textarea
+                            className="translation-input"
+                            value={upgradeInput}
+                            onChange={(e) => setUpgradeInput(e.target.value)}
+                            placeholder="Ví dụ: I want to get a better job because I need more money..."
+                            rows={5}
+                        />
+                        <div className="input-footer">
+                            <span className="word-count">{upgradeInput.trim() ? upgradeInput.trim().split(/\s+/).length : 0} từ</span>
+                            <button
+                                className="submit-btn"
+                                onClick={handleUpgrade}
+                                disabled={loading || !upgradeInput.trim()}
+                                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                            >
+                                {loading ? 'Đang xử lý...' : 'Nâng cấp ngay ✨'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Results Area */}
                     {upgradeResult && (
-                        <div className="upgrade-result">
-                            <div className="original-review">
-                                <label>Phiên bản nâng cấp:</label>
-                                <div className="upgraded-text">{upgradeResult.upgradedSentence}</div>
+                        <div className="comparison-container">
+                            <div className="diff-card upgraded">
+                                <span className="diff-label">🌟 Phiên bản nâng cấp ({vocabLevel})</span>
+                                <div className="diff-content">
+                                    {upgradeResult.upgradedSentence}
+                                </div>
                             </div>
-                            {upgradeResult.improvements && (
+
+                            {upgradeResult.improvements && upgradeResult.improvements.length > 0 && (
                                 <div className="improvements-list">
-                                    <h5>Những thay đổi chính:</h5>
-                                    <ul>
-                                        {upgradeResult.improvements.map((imp, idx) => (
-                                            <li key={idx}>
-                                                <span className="diff-highlight">"{imp.original}"</span> ➜ <span className="diff-highlight">"{imp.improved}"</span>
-                                                <br />
-                                                <small>{imp.explanation}</small>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    <h4 style={{ color: '#64748b', marginBottom: '16px', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        Chi tiết thay đổi
+                                    </h4>
+                                    {upgradeResult.improvements.map((imp, idx) => (
+                                        <div key={idx} className="improvement-item bounce-in" style={{ animationDelay: `${idx * 0.1}s` }}>
+                                            <div className="change-row">
+                                                <span className="old-val">{imp.original}</span>
+                                                <span className="arrow-icon">➜</span>
+                                                <span className="new-val">{imp.improved}</span>
+                                            </div>
+                                            <p className="explanation-text">{imp.explanation}</p>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>

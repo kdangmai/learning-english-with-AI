@@ -6,7 +6,8 @@ const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  timeout: 30000 // 30s timeout to prevent hanging requests
 });
 
 // Add token to every request
@@ -32,6 +33,34 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Request deduplication for GET requests (prevents duplicate fetches during rapid re-mounts)
+const pendingRequests = new Map();
+
+apiClient.interceptors.request.use((config) => {
+  if (config.method === 'get') {
+    const key = config.url + JSON.stringify(config.params || {});
+    if (pendingRequests.has(key)) {
+      // Already in-flight - cancel this duplicate
+      const controller = new AbortController();
+      config.signal = controller.signal;
+      controller.abort('Duplicate request cancelled');
+    } else {
+      config._dedupKey = key;
+      pendingRequests.set(key, Date.now());
+      // Auto-cleanup after 2s to prevent stale entries
+      setTimeout(() => pendingRequests.delete(key), 2000);
+    }
+  }
+  return config;
+});
+
+apiClient.interceptors.response.use((response) => {
+  if (response.config._dedupKey) {
+    pendingRequests.delete(response.config._dedupKey);
+  }
+  return response;
+});
 
 // Auth endpoints
 export const authAPI = {
@@ -70,7 +99,11 @@ export const vocabularyAPI = {
   getFlashcards: () => apiClient.get('/vocabulary/flashcards'),
   generateFlashcards: (topic) => apiClient.post('/vocabulary/generate-flashcards', { topic }),
   // Apply action on a word from flashcard: { action: 'learned'|'add'|'skip' }
-  applyAction: (wordId, body) => apiClient.post(`/vocabulary/${wordId}/action`, body)
+  applyAction: (wordId, body) => apiClient.post(`/vocabulary/${wordId}/action`, body),
+  // Bulk delete words (single operation instead of N individual requests)
+  bulkDelete: (wordIds) => apiClient.post('/vocabulary/bulk-delete', { wordIds }),
+  // Delete single word
+  deleteWord: (wordId) => apiClient.delete(`/vocabulary/${wordId}`)
 };
 
 // Sentence endpoints

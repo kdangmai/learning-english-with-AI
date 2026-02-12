@@ -712,6 +712,35 @@ exports.deleteWord = async (req, res) => {
 };
 
 /**
+ * Bulk delete vocabulary words (single DB operation instead of N)
+ */
+exports.bulkDeleteWords = async (req, res) => {
+  try {
+    const { wordIds } = req.body;
+    const userId = req.userId;
+
+    if (!wordIds || !Array.isArray(wordIds) || wordIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'wordIds array is required' });
+    }
+
+    // Single deleteMany instead of N separate delete operations
+    const result = await Vocabulary.deleteMany({
+      _id: { $in: wordIds },
+      userId
+    });
+
+    res.json({
+      success: true,
+      message: `Deleted ${result.deletedCount} words`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    console.error('Bulk delete error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
  * Get SRS statistics for user
  */
 exports.getSrsStats = async (req, res) => {

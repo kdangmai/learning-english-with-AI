@@ -37,6 +37,9 @@ router.post('/srs-review', vocabularyController.srsReview);
 // POST /api/vocabulary/generate-flashcards - Generate AI flashcards
 router.post('/generate-flashcards', vocabularyController.generateFlashcards);
 
+// POST /api/vocabulary/bulk-delete - Bulk delete words (single operation)
+router.post('/bulk-delete', vocabularyController.bulkDeleteWords);
+
 // === WILDCARD ROUTES LAST ===
 
 // PUT /api/vocabulary/:wordId - Update vocabulary word

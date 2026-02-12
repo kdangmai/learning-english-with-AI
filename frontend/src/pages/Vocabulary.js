@@ -1,9 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import './Vocabulary.css';
 
 import Modal from '../components/common/Modal';
+
+const ITEMS_PER_PAGE = 30;
+
+// Debounce hook for search optimization
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
 
 export function Vocabulary() {
   const navigate = useNavigate();
@@ -29,8 +41,8 @@ export function Vocabulary() {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [targetFolderId, setTargetFolderId] = useState('');
-  const [expandedCard, setExpandedCard] = useState(null);
   const [sortBy, setSortBy] = useState('newest');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Filter States
   const [selectedLevel, setSelectedLevel] = useState('B1');
@@ -102,6 +114,7 @@ export function Vocabulary() {
 
       setWords(fetchedWords);
       setSelectedWords(new Set());
+      setCurrentPage(1);
     } catch (err) {
       console.error('Error fetching library words:', err);
     } finally {
@@ -127,8 +140,6 @@ export function Vocabulary() {
 
     const voices = window.speechSynthesis.getVoices();
     let preferredVoice = null;
-
-    // Default to UK if no accent provided, or if specifically requested
     const targetAccent = accent || selectedAccent || 'UK';
 
     if (targetAccent === 'UK') {
@@ -141,9 +152,7 @@ export function Vocabulary() {
       if (!preferredVoice) preferredVoice = voices.find(v => v.lang.includes('en-US'));
     }
 
-    // Fallback if specific voice not found
     if (!preferredVoice) preferredVoice = voices.find(v => v.lang.includes('en'));
-
     if (preferredVoice) utterance.voice = preferredVoice;
     window.speechSynthesis.speak(utterance);
   };
@@ -216,7 +225,6 @@ export function Vocabulary() {
     const card = flashcards[currentCardIndex];
     if (!card) return;
 
-    // Track session results
     setSessionResults(prev => ({ ...prev, [rating]: (prev[rating] || 0) + 1 }));
 
     try {
@@ -231,7 +239,6 @@ export function Vocabulary() {
 
       const data = await res.json();
 
-      // Update current card's intervals if server returns them (for next card display)
       if (data.nextIntervals && currentCardIndex + 1 < flashcards.length) {
         setFlashcards(prev => {
           const updated = [...prev];
@@ -245,10 +252,9 @@ export function Vocabulary() {
         });
       }
 
-      // Move Next
       if (currentCardIndex < flashcards.length - 1) {
         setFlipped(false);
-        setTimeout(() => setCurrentCardIndex(prev => prev + 1), 150);
+        setTimeout(() => setCurrentCardIndex(prev => prev + 1), 120);
       } else {
         setShowCompletionModal(true);
         fetchSrsStats();
@@ -267,8 +273,8 @@ export function Vocabulary() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedWords.size === words.length) setSelectedWords(new Set());
-    else setSelectedWords(new Set(words.map(w => w._id)));
+    if (selectedWords.size === paginatedWords.length) setSelectedWords(new Set());
+    else setSelectedWords(new Set(paginatedWords.map(w => w._id)));
   };
 
   // Folder Logic
@@ -341,17 +347,24 @@ export function Vocabulary() {
     if (!window.confirm(confirmMsg)) return;
 
     try {
-      const promises = Array.from(selectedWords).map(id =>
-        fetch(`/api/vocabulary/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        })
-      );
-      await Promise.all(promises);
-      success(`Đã xóa ${selectedWords.size} từ!`);
-      setSelectedWords(new Set());
-      fetchLibraryWords();
-      fetchSrsStats();
+      // Single bulk-delete API call instead of N individual requests
+      const res = await fetch('/api/vocabulary/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ wordIds: Array.from(selectedWords) })
+      });
+      const data = await res.json();
+      if (data.success) {
+        success(`Đã xóa ${data.deletedCount} từ!`);
+        setSelectedWords(new Set());
+        fetchLibraryWords();
+        fetchSrsStats();
+      } else {
+        error(data.message || 'Lỗi khi xóa');
+      }
     } catch (err) {
       error("Lỗi khi xóa từ hàng loạt");
     }
@@ -391,7 +404,6 @@ export function Vocabulary() {
       return card.nextIntervals;
     }
 
-    // Fallback for cards from startLearning (no nextIntervals from server)
     const srs = card.srs || { step: 0, interval: 0, easeFactor: 2.5 };
     const step = srs.step || 0;
     if (step === 0) {
@@ -414,6 +426,28 @@ export function Vocabulary() {
     return map[status] || '#94a3b8';
   };
 
+  const getMasteryIcon = (status) => {
+    const map = { unknown: '⚪', learning: '🟡', known: '🔵', mastered: '🟢' };
+    return map[status] || '⚪';
+  };
+
+  // User-friendly SRS review status
+  const getSrsReviewLabel = (word) => {
+    const dueDate = word.srs?.dueDate || word.mastery?.nextReviewAt;
+    if (!dueDate) return { text: 'Chưa lên lịch', color: '#94a3b8', icon: '📅' };
+    const now = new Date();
+    const d = new Date(dueDate);
+    const diff = d - now;
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+    if (days < 0) return { text: 'Quá hạn', color: '#ef4444', icon: '🔴' };
+    if (days === 0) return { text: 'Ôn hôm nay', color: '#f59e0b', icon: '🟠' };
+    if (days === 1) return { text: 'Ôn ngày mai', color: '#3b82f6', icon: '🔵' };
+    if (days < 7) return { text: `Ôn sau ${days} ngày`, color: '#6366f1', icon: '🟣' };
+    if (days < 30) return { text: `Ôn sau ${Math.round(days / 7)} tuần`, color: '#22c55e', icon: '🟢' };
+    return { text: `Ôn sau ${Math.round(days / 30)} tháng`, color: '#22c55e', icon: '🟢' };
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '—';
     const d = new Date(dateStr);
@@ -429,42 +463,55 @@ export function Vocabulary() {
     return `${Math.round(days / 30)} tháng`;
   };
 
-  // Filter words by search query
-  const filteredWords = words.filter(w => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return w.word.toLowerCase().includes(q) ||
-      (w.meaning?.vi || '').toLowerCase().includes(q) ||
-      (w.topic || '').toLowerCase().includes(q);
-  });
+  // Debounced search to prevent excessive re-renders while typing
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
-  // Sort filtered words
-  const sortedWords = [...filteredWords].sort((a, b) => {
-    switch (sortBy) {
-      case 'az': return a.word.localeCompare(b.word);
-      case 'za': return b.word.localeCompare(a.word);
-      case 'mastery': {
-        const order = { mastered: 0, known: 1, learning: 2, unknown: 3 };
-        return (order[a.mastery?.status] || 3) - (order[b.mastery?.status] || 3);
-      }
-      case 'due': {
-        const aDate = new Date(a.srs?.dueDate || a.mastery?.nextReviewAt || '2099-01-01');
-        const bDate = new Date(b.srs?.dueDate || b.mastery?.nextReviewAt || '2099-01-01');
-        return aDate - bDate;
-      }
-      case 'newest':
-      default:
-        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  // Memoized: filter + sort words (uses debounced search for better perf)
+  const sortedWords = useMemo(() => {
+    let filtered = words;
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
+      filtered = words.filter(w =>
+        w.word.toLowerCase().includes(q) ||
+        (w.meaning?.vi || '').toLowerCase().includes(q) ||
+        (w.topic || '').toLowerCase().includes(q)
+      );
     }
-  });
 
-  // Mastery progress percentage
-  const getMasteryProgress = (status) => {
-    const map = { unknown: 0, learning: 33, known: 66, mastered: 100 };
-    return map[status] || 0;
-  };
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'az': return a.word.localeCompare(b.word);
+        case 'za': return b.word.localeCompare(a.word);
+        case 'mastery': {
+          const order = { mastered: 0, known: 1, learning: 2, unknown: 3 };
+          return (order[a.mastery?.status] || 3) - (order[b.mastery?.status] || 3);
+        }
+        case 'due': {
+          const aDate = new Date(a.srs?.dueDate || a.mastery?.nextReviewAt || '2099-01-01');
+          const bDate = new Date(b.srs?.dueDate || b.mastery?.nextReviewAt || '2099-01-01');
+          return aDate - bDate;
+        }
+        case 'newest':
+        default:
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      }
+    });
+  }, [words, debouncedSearch, sortBy]);
+
+  // Pagination
+  const totalPages = Math.ceil(sortedWords.length / ITEMS_PER_PAGE);
+  const paginatedWords = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return sortedWords.slice(start, start + ITEMS_PER_PAGE);
+  }, [sortedWords, currentPage]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortBy, libraryTab, selectedFolder]);
 
   const intervals = getCurrentCardIntervals();
+  const currentCard = flashcards[currentCardIndex];
 
   return (
     <div className="vocabulary-page">
@@ -594,7 +641,7 @@ export function Vocabulary() {
         )}
 
         {/* LEARNING / SRS FLASHCARD MODE */}
-        {isLearning && flashcards.length > 0 && flashcards[currentCardIndex] && (
+        {isLearning && flashcards.length > 0 && currentCard && (
           <div className="flashcard-session">
             <div className="session-header">
               <button className="back-btn" onClick={() => { setIsLearning(false); setFlashcards([]); }}>
@@ -614,35 +661,34 @@ export function Vocabulary() {
             <div className={`flashcard-3d ${flipped ? 'flipped' : ''}`} onClick={() => setFlipped(!flipped)}>
               <div className="card-face front">
                 <div className="card-content">
-                  <h2 className="word">{flashcards[currentCardIndex].word}</h2>
+                  <h2 className="word">{currentCard.word}</h2>
 
                   <div className="card-meta">
-                    <span className="part-of-speech">({flashcards[currentCardIndex].partOfSpeech})</span>
-                    <span className={`level-badge ${flashcards[currentCardIndex].level}`}>{flashcards[currentCardIndex].level}</span>
-                    {flashcards[currentCardIndex].mastery && (
-                      <span className="mastery-badge-simple" style={{ color: getMasteryColor(flashcards[currentCardIndex].mastery.status) }}>
-                        {getMasteryLabel(flashcards[currentCardIndex].mastery.status)}
+                    <span className="part-of-speech">({currentCard.partOfSpeech})</span>
+                    <span className={`level-badge ${currentCard.level}`}>{currentCard.level}</span>
+                    {currentCard.mastery && (
+                      <span className="mastery-badge-simple" style={{ color: getMasteryColor(currentCard.mastery.status) }}>
+                        {getMasteryLabel(currentCard.mastery.status)}
                       </span>
                     )}
                   </div>
 
-                  {typeof flashcards[currentCardIndex].pronunciation === 'string' ? (
-                    <div className="pronunciation-single" onClick={(e) => { e.stopPropagation(); handleSpeak(flashcards[currentCardIndex].word, 'UK'); }}>
-                      <span className="ipa">/{flashcards[currentCardIndex].pronunciation}/</span>
+                  {typeof currentCard.pronunciation === 'string' ? (
+                    <div className="pronunciation-single" onClick={(e) => { e.stopPropagation(); handleSpeak(currentCard.word, 'UK'); }}>
+                      <span className="ipa">/{currentCard.pronunciation}/</span>
                       <button className="audio-btn-round">🔊</button>
                     </div>
                   ) : (
                     <div className="pronunciation-container">
-                      {/* UK First (Default) */}
-                      <div className="pron-item uk" onClick={(e) => { e.stopPropagation(); handleSpeak(flashcards[currentCardIndex].word, 'UK'); }}>
+                      <div className="pron-item uk" onClick={(e) => { e.stopPropagation(); handleSpeak(currentCard.word, 'UK'); }}>
                         <span className="lang-code">UK</span>
-                        <span className="ipa">/{flashcards[currentCardIndex].pronunciation?.uk || ''}/</span>
+                        <span className="ipa">/{currentCard.pronunciation?.uk || ''}/</span>
                         <button className="audio-btn-mini">🔊</button>
                       </div>
-                      <div className="pron-item us" onClick={(e) => { e.stopPropagation(); handleSpeak(flashcards[currentCardIndex].word, 'US'); }}>
+                      <div className="pron-item us" onClick={(e) => { e.stopPropagation(); handleSpeak(currentCard.word, 'US'); }}>
                         <span className="lang-code">US</span>
-                        <span className="ipa">/{flashcards[currentCardIndex].pronunciation?.us || ''}/</span>
-                        <button className="audio-btn-mini">??</button>
+                        <span className="ipa">/{currentCard.pronunciation?.us || ''}/</span>
+                        <button className="audio-btn-mini">🔊</button>
                       </div>
                     </div>
                   )}
@@ -653,21 +699,21 @@ export function Vocabulary() {
 
               <div className="card-face back">
                 <div className="card-content">
-                  <h3 className="meaning">{flashcards[currentCardIndex].meaning?.vi}</h3>
+                  <h3 className="meaning">{currentCard.meaning?.vi}</h3>
                   <div className="card-back-meta">
-                    <span className="back-pos">({flashcards[currentCardIndex].partOfSpeech})</span>
-                    {flashcards[currentCardIndex].topic && (
-                      <span className="back-topic">📂 {flashcards[currentCardIndex].topic}</span>
+                    <span className="back-pos">({currentCard.partOfSpeech})</span>
+                    {currentCard.topic && (
+                      <span className="back-topic">📂 {currentCard.topic}</span>
                     )}
                   </div>
                   <div className="example-box">
-                    <p className="example-en">"{flashcards[currentCardIndex].example}"</p>
+                    <p className="example-en">"{currentCard.example}"</p>
                   </div>
-                  {flashcards[currentCardIndex].srs?.step > 0 && (
+                  {currentCard.srs?.step > 0 && (
                     <div className="card-back-srs">
-                      <span className="srs-step-info">📊 SRS Bước {flashcards[currentCardIndex].srs.step}</span>
+                      <span className="srs-step-info">📊 SRS Bước {currentCard.srs.step}</span>
                       <span className="srs-reviews-info">
-                        ✅ {flashcards[currentCardIndex].mastery?.correctCount || 0} / ❌ {flashcards[currentCardIndex].mastery?.incorrectCount || 0}
+                        ✅ {currentCard.mastery?.correctCount || 0} / ❌ {currentCard.mastery?.incorrectCount || 0}
                       </span>
                     </div>
                   )}
@@ -675,7 +721,7 @@ export function Vocabulary() {
               </div>
             </div>
 
-            {/* SRS CONTROLS - 4 buttons like Anki */}
+            {/* SRS CONTROLS */}
             <div className="controls srs-controls">
               <button disabled={loading} className="btn-srs again" onClick={() => handleSRSAction('again')}>
                 <span className="srs-emoji">🔁</span>
@@ -771,7 +817,7 @@ export function Vocabulary() {
                   {selectedWords.size > 0 && (
                     <>
                       <button className="action-btn-mini folder-action" onClick={() => setShowFolderModal(true)}>
-                        📂 Thêm vào thư mục ({selectedWords.size})
+                        📂 Thêm ({selectedWords.size})
                       </button>
                       <button className="action-btn-mini delete-action" onClick={handleBulkDelete}>
                         🗑️ Xóa ({selectedWords.size})
@@ -792,9 +838,9 @@ export function Vocabulary() {
             </div>
 
             <div className="word-list">
-              {viewMode === 'list' && sortedWords.length > 0 && (
+              {viewMode === 'list' && paginatedWords.length > 0 && (
                 <div className="list-header-row">
-                  <input type="checkbox" checked={selectedWords.size === sortedWords.length && sortedWords.length > 0} onChange={toggleSelectAll} />
+                  <input type="checkbox" checked={selectedWords.size === paginatedWords.length && paginatedWords.length > 0} onChange={toggleSelectAll} />
                   <span className="list-header-word">Từ vựng</span>
                   <span className="list-header-pron">Phát âm</span>
                   <span className="list-header-meaning">Nghĩa</span>
@@ -809,7 +855,7 @@ export function Vocabulary() {
                   <div className="loading-spinner-small" />
                   <p>Đang tải...</p>
                 </div>
-              ) : sortedWords.length === 0 ? (
+              ) : paginatedWords.length === 0 ? (
                 <div className="empty-state">
                   <span className="empty-icon">📭</span>
                   <p>Chưa có từ vựng nào.</p>
@@ -817,64 +863,36 @@ export function Vocabulary() {
                 </div>
               ) : (
                 <div className={viewMode === 'grid' ? "words-grid" : "words-list"}>
-                  {sortedWords.map((word) => (
+                  {paginatedWords.map((word) => (
                     <div
                       key={word._id}
-                      className={`word-card ${viewMode} ${selectedWords.has(word._id) ? 'selected' : ''} ${expandedCard === word._id ? 'expanded' : ''}`}
+                      className={`word-card ${viewMode} ${selectedWords.has(word._id) ? 'selected' : ''}`}
                       onClick={() => toggleSelectWord(word._id)}
                     >
                       {viewMode === 'grid' ? (
-                        // GRID VIEW
+                        // GRID VIEW - Clean Minimal Card
                         <>
                           <div className="card-select" onClick={(e) => { e.stopPropagation(); toggleSelectWord(word._id); }}>
                             <input type="checkbox" checked={selectedWords.has(word._id)} readOnly />
                           </div>
+
                           <div className="word-header">
                             <h4>{word.word}</h4>
                             <div className="word-badges">
                               <span className={`level-badge ${word.level}`}>{word.level}</span>
-                              <span
-                                className="mastery-badge"
-                                style={{ backgroundColor: getMasteryColor(word.mastery?.status) + '20', color: getMasteryColor(word.mastery?.status) }}
-                              >
-                                {getMasteryLabel(word.mastery?.status)}
-                              </span>
                             </div>
                           </div>
 
-                          {/* Mastery Progress Bar */}
-                          <div className="mastery-progress-bar">
-                            <div
-                              className="mastery-progress-fill"
-                              style={{ width: `${getMasteryProgress(word.mastery?.status)}%`, backgroundColor: getMasteryColor(word.mastery?.status) }}
-                            />
-                          </div>
-
-                          {typeof word.pronunciation === 'string' ? (
-                            <p className="pronunciation-text">{word.pronunciation}</p>
-                          ) : (
-                            <div className="pronunciation-dual">
-                              <span className="pron-inline">🇺🇸 /{word.pronunciation?.us}/</span>
-                              <span className="pron-inline">🇬🇧 /{word.pronunciation?.uk}/</span>
-                            </div>
-                          )}
-
-                          <p className="meaning-vi">🇻🇳 {word.meaning?.vi}</p>
-
-                          {word.example && (
-                            <p className="example-text">💬 {word.example}</p>
-                          )}
+                          <p className="meaning-vi">{word.meaning?.vi}</p>
 
                           <div className="card-footer">
                             <div className="srs-info">
-                              <span className="srs-next-review" title="Ôn tập tiếp theo">
-                                🔄 {formatDate(word.srs?.dueDate || word.mastery?.nextReviewAt)}
+                              <span className="mastery-indicator" style={{ color: getMasteryColor(word.mastery?.status) }}>
+                                {getMasteryIcon(word.mastery?.status)} {getMasteryLabel(word.mastery?.status)}
                               </span>
-                              {word.srs?.step > 0 && (
-                                <span className="srs-step" title="SRS Step">
-                                  Bước {word.srs.step}
-                                </span>
-                              )}
+                              <span className="srs-review-status" style={{ color: getSrsReviewLabel(word).color }}>
+                                {getSrsReviewLabel(word).icon} {getSrsReviewLabel(word).text}
+                              </span>
                             </div>
                             <div className="card-actions">
                               <button className="audio-btn" onClick={(e) => { e.stopPropagation(); handleSpeak(word.word); }}>🔊</button>
@@ -898,7 +916,7 @@ export function Vocabulary() {
                           </div>
                           <div className="list-pron-col">
                             {typeof word.pronunciation === 'string'
-                              ? <span>{word.pronunciation}</span>
+                              ? <span>/{word.pronunciation}/</span>
                               : <span>/{word.pronunciation?.us}/</span>
                             }
                             <button className="audio-btn-mini" onClick={(e) => { e.stopPropagation(); handleSpeak(word.word); }}>🔊</button>
@@ -909,7 +927,7 @@ export function Vocabulary() {
                           <div className="list-status-col">
                             <span
                               className="mastery-badge-sm"
-                              style={{ backgroundColor: getMasteryColor(word.mastery?.status) + '20', color: getMasteryColor(word.mastery?.status) }}
+                              style={{ backgroundColor: getMasteryColor(word.mastery?.status) + '18', color: getMasteryColor(word.mastery?.status) }}
                             >
                               {getMasteryLabel(word.mastery?.status)}
                             </span>
@@ -924,6 +942,48 @@ export function Vocabulary() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="pagination-bar">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  >
+                    ‹
+                  </button>
+                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                    let page;
+                    if (totalPages <= 7) {
+                      page = i + 1;
+                    } else if (currentPage <= 4) {
+                      page = i + 1;
+                    } else if (currentPage >= totalPages - 3) {
+                      page = totalPages - 6 + i;
+                    } else {
+                      page = currentPage - 3 + i;
+                    }
+                    return (
+                      <button
+                        key={page}
+                        className={currentPage === page ? 'active' : ''}
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  >
+                    ›
+                  </button>
+                  <span className="pagination-info">
+                    {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, sortedWords.length)} / {sortedWords.length}
+                  </span>
                 </div>
               )}
             </div>

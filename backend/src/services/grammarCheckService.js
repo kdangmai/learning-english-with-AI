@@ -37,7 +37,7 @@ class GrammarCheckService {
       };
     } catch (error) {
       console.error('Grammar check error:', error);
-      throw new Error('Failed to check grammar');
+      throw new Error('Failed to check grammar', { cause: error });
     }
   }
 
@@ -47,10 +47,10 @@ class GrammarCheckService {
   static async scoreSentence(userSentence, referenceSentence) {
     try {
       const grammarCheck = await this.checkGrammar(userSentence);
-      
+
       // Calculate scores (simplified)
       const grammarScore = Math.max(0, 100 - (grammarCheck.errorCount * 10));
-      
+
       // Vocabulary score based on similarity to reference (simplified)
       const vocabularyScore = this.calculateSimilarity(userSentence, referenceSentence) * 100;
 
@@ -75,10 +75,10 @@ class GrammarCheckService {
   static calculateSimilarity(str1, str2) {
     const words1 = str1.toLowerCase().split(/\s+/);
     const words2 = str2.toLowerCase().split(/\s+/);
-    
+
     const matches = words1.filter(word => words2.includes(word)).length;
     const maxLength = Math.max(words1.length, words2.length);
-    
+
     return maxLength > 0 ? matches / maxLength : 0;
   }
 }

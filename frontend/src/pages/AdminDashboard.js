@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { adminAPI } from '../services/api';
 import { useUserStore } from '../store/store';
 import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
@@ -32,11 +33,17 @@ export default function AdminDashboard() {
         email: '',
         password: '',
         role: 'user',
-        fullName: ''
+        fullName: '',
+        currentLevel: 'beginner',
+        xp: 0,
+        isEmailVerified: false
     });
 
     // Edit User State
     const [editUser, setEditUser] = useState(null);
+    // Edit Key State
+    const [editKey, setEditKey] = useState(null);
+    const fileInputRef = useRef(null);
 
     // Search / Filter
     const [userSearch, setUserSearch] = useState('');
@@ -146,10 +153,7 @@ export default function AdminDashboard() {
     const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/admin/users', {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            const data = await response.json();
+            const { data } = await adminAPI.getUsers();
             if (data.success) {
                 setUsers(data.users);
                 tabDataLoaded.current.users = true;
@@ -163,10 +167,7 @@ export default function AdminDashboard() {
 
     const fetchKeyStats = useCallback(async () => {
         try {
-            const response = await fetch('/api/admin/api-keys/stats', {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            const data = await response.json();
+            const { data } = await adminAPI.getApiKeyStats();
             if (data.success) {
                 setKeyStats({
                     stats: data.stats || {},
@@ -181,10 +182,7 @@ export default function AdminDashboard() {
     const fetchApiKeys = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/admin/api-keys', {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            const data = await response.json();
+            const { data } = await adminAPI.getApiKeys();
             if (data.success) {
                 const fullKeyMap = {};
                 (data.fullKeys || []).forEach(fk => { fullKeyMap[fk._id] = fk.key; });
@@ -206,10 +204,7 @@ export default function AdminDashboard() {
     const fetchConfig = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/admin/config', {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            const data = await response.json();
+            const { data } = await adminAPI.getConfig();
             if (data.success) {
                 setConfig(data.config);
                 setOriginalConfig(data.config);
@@ -233,14 +228,7 @@ export default function AdminDashboard() {
 
         try {
             for (const key of changedKeys) {
-                await fetch('/api/admin/config', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({ key, value: config[key] })
-                });
+                await adminAPI.updateConfig(key, config[key]);
             }
 
             setOriginalConfig({ ...config });
@@ -255,20 +243,12 @@ export default function AdminDashboard() {
         e.preventDefault();
         setLoading(true);
         try {
-            const response = await fetch('/api/admin/users', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify(newUserData)
-            });
-            const data = await response.json();
+            const { data } = await adminAPI.createUser(newUserData);
 
             if (data.success) {
                 success(`User ${data.user.username} created successfully!`);
                 setShowAddUserModal(false);
-                setNewUserData({ username: '', email: '', password: '', role: 'user', fullName: '' });
+                setNewUserData({ username: '', email: '', password: '', role: 'user', fullName: '', currentLevel: 'beginner', xp: 0, isEmailVerified: false });
                 fetchUsers();
             } else {
                 error(data.message);
@@ -292,15 +272,7 @@ export default function AdminDashboard() {
         e.preventDefault();
         setLoading(true);
         try {
-            const response = await fetch(`/api/admin/users/${editUser._id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify(editUser)
-            });
-            const data = await response.json();
+            const { data } = await adminAPI.updateUser(editUser._id, editUser);
 
             if (data.success) {
                 success('User information updated successfully!');
@@ -325,13 +297,7 @@ export default function AdminDashboard() {
             confirmText: 'Delete User',
             onConfirm: async () => {
                 try {
-                    const response = await fetch(`/api/admin/users/${userId}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        }
-                    });
-                    const data = await response.json();
+                    const { data } = await adminAPI.deleteUser(userId);
                     if (data.success) {
                         success(`User "${username}" deleted successfully`);
                         setConfirmConfig(null);
@@ -350,11 +316,7 @@ export default function AdminDashboard() {
     const handleTestAllKeys = async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/admin/api-keys/test-all', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            const data = await response.json();
+            const { data } = await adminAPI.testAllApiKeys();
             if (data.success) {
                 const { total, success: successCount, failed } = data.results;
                 success(`Tested ${total} keys.\n✅ Success: ${successCount}\n❌ Failed/Deactivated: ${failed}`);
@@ -373,15 +335,7 @@ export default function AdminDashboard() {
     const handleBatchActivate = async () => {
         if (selectedKeys.size === 0) return;
         try {
-            const response = await fetch('/api/admin/api-keys/activate-batch', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ ids: Array.from(selectedKeys) })
-            });
-            const data = await response.json();
+            const { data } = await adminAPI.activateBatchApiKeys(Array.from(selectedKeys));
             if (data.success) {
                 success(data.message);
                 fetchApiKeys();
@@ -403,15 +357,7 @@ export default function AdminDashboard() {
             confirmText: 'Delete',
             onConfirm: async () => {
                 try {
-                    const response = await fetch('/api/admin/api-keys/delete-batch', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        },
-                        body: JSON.stringify({ ids: Array.from(selectedKeys) })
-                    });
-                    const data = await response.json();
+                    const { data } = await adminAPI.deleteBatchApiKeys(Array.from(selectedKeys));
                     if (data.success) {
                         success(data.message);
                         setSelectedKeys(new Set());
@@ -448,15 +394,7 @@ export default function AdminDashboard() {
         if (!newKeyValue) return error('Key is required');
 
         try {
-            const response = await fetch('/api/admin/api-keys', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ name: newKeyName, key: newKeyValue })
-            });
-            const data = await response.json();
+            const { data } = await adminAPI.createApiKey({ name: newKeyName, key: newKeyValue });
             if (data.success) {
                 setNewKeyName('');
                 setNewKeyValue('');
@@ -474,15 +412,7 @@ export default function AdminDashboard() {
         setTestingKeyId(isNewKey ? '__new__' : key);
 
         try {
-            const response = await fetch('/api/admin/api-keys/test', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ key: key })
-            });
-            const data = await response.json();
+            const { data } = await adminAPI.testApiKey(key);
 
             if (data.success) {
                 success(`✅ ${data.message}`);
@@ -512,13 +442,7 @@ export default function AdminDashboard() {
 
     const handleActivateKey = async (id) => {
         try {
-            const response = await fetch(`/api/admin/api-keys/${id}/toggle`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            const data = await response.json();
+            const { data } = await adminAPI.toggleApiKey(id);
             if (data.success) {
                 fetchApiKeys();
             } else {
@@ -537,13 +461,7 @@ export default function AdminDashboard() {
             confirmText: 'Delete',
             onConfirm: async () => {
                 try {
-                    const response = await fetch(`/api/admin/api-keys/${id}`, {
-                        method: 'DELETE',
-                        headers: {
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        }
-                    });
-                    const data = await response.json();
+                    const { data } = await adminAPI.deleteApiKey(id);
                     if (data.success) {
                         fetchApiKeys();
                         success('API Key deleted successfully');
@@ -557,6 +475,90 @@ export default function AdminDashboard() {
                 }
             }
         });
+    };
+
+    const handleUpdateKey = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const { data } = await adminAPI.updateApiKey(editKey._id, editKey);
+            if (data.success) {
+                success('API Key updated successfully');
+                setEditKey(null);
+                fetchApiKeys();
+            } else {
+                error(data.message);
+            }
+        } catch (err) {
+            console.error('Update key error:', err);
+            error('Failed to update key');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleExportKeys = () => {
+        if (apiKeys.length === 0) return error("No keys to export");
+        const content = apiKeys.map(k => `${k.name || 'Untitled'}|${k.fullKey}`).join('\n');
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `api_keys_export_${new Date().toISOString().slice(0, 10)}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        success("Keys exported to text file");
+    };
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const text = event.target.result;
+                const lines = text.split(/\r?\n/);
+                const keysToImport = [];
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    const parts = line.split('|');
+                    if (parts.length >= 2) {
+                        keysToImport.push({
+                            name: parts[0].trim(),
+                            key: parts[1].trim()
+                        });
+                    }
+                }
+
+                if (keysToImport.length === 0) {
+                    return error("No valid keys found (format: Name|Key)");
+                }
+
+                setLoading(true);
+                const { data } = await adminAPI.importApiKeys(keysToImport);
+                if (data.success) {
+                    success(data.message);
+                    fetchApiKeys();
+                } else {
+                    error(data.message);
+                }
+            } catch (err) {
+                console.error("Import error", err);
+                error("Failed to import keys");
+            } finally {
+                setLoading(false);
+                e.target.value = ''; // Reset input
+            }
+        };
+        reader.readAsText(file);
     };
 
     const copyToClipboard = (text) => {
@@ -857,10 +859,23 @@ export default function AdminDashboard() {
                         </form>
 
                         <div className="bulk-actions-bar">
-                            <div className="bulk-left">
+                            <div className="bulk-left" style={{ gap: '10px', display: 'flex' }}>
                                 <button className="action-btn-styled test-all" onClick={handleTestAllKeys}>
                                     🧪 Test ALL Keys
                                 </button>
+                                <button className="action-btn-styled export" onClick={handleExportKeys} style={{ background: '#0ea5e9', color: 'white', border: 'none', padding: '0 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                                    📤 Export
+                                </button>
+                                <button className="action-btn-styled import" onClick={handleImportClick} style={{ background: '#8b5cf6', color: 'white', border: 'none', padding: '0 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                                    📥 Import
+                                </button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    style={{ display: 'none' }}
+                                    accept=".txt"
+                                    onChange={handleFileChange}
+                                />
                             </div>
 
                             {selectedKeys.size > 0 && (
@@ -971,6 +986,14 @@ export default function AdminDashboard() {
                                                             {k.isActive ? 'Deactivate' : 'Activate'}
                                                         </button>
                                                         <button
+                                                            className="action-btn btn-edit"
+                                                            onClick={() => setEditKey(k)}
+                                                            style={{ background: '#f59e0b', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', marginRight: '5px' }}
+                                                            title="Edit Key"
+                                                        >
+                                                            ✏️
+                                                        </button>
+                                                        <button
                                                             className="action-btn btn-test-key"
                                                             onClick={() => handleTestExistingKey(k.fullKey)}
                                                         >
@@ -1059,6 +1082,36 @@ export default function AdminDashboard() {
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
                         </select>
+                    </div>
+                    <div className="form-group">
+                        <label>Level</label>
+                        <select
+                            value={newUserData.currentLevel}
+                            onChange={(e) => setNewUserData({ ...newUserData, currentLevel: e.target.value })}
+                        >
+                            {['beginner', 'elementary', 'intermediate', 'upper-intermediate', 'advanced', 'expert', 'master', 'legend'].map(lvl => (
+                                <option key={lvl} value={lvl}>{lvl}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label>XP</label>
+                        <input
+                            type="number"
+                            value={newUserData.xp}
+                            onChange={(e) => setNewUserData({ ...newUserData, xp: parseInt(e.target.value) || 0 })}
+                        />
+                    </div>
+                    <div className="form-group checkbox-group">
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '10px' }}>
+                            <input
+                                type="checkbox"
+                                checked={newUserData.isEmailVerified}
+                                onChange={(e) => setNewUserData({ ...newUserData, isEmailVerified: e.target.checked })}
+                                style={{ width: '20px', height: '20px' }}
+                            />
+                            <span>Verified Email Address</span>
+                        </label>
                     </div>
                 </form>
             </Modal>
@@ -1185,6 +1238,62 @@ export default function AdminDashboard() {
                                     style={{ borderColor: editUser.password ? '#f59e0b' : '#e2e8f0' }}
                                 />
                             </div>
+                        </div>
+                    </form>
+                )}
+            </Modal>
+
+            {/* Edit Key Modal */}
+            <Modal
+                isOpen={!!editKey}
+                onClose={() => setEditKey(null)}
+                title="✏️ Edit API Key"
+                footer={(
+                    <>
+                        <button type="button" className="cancel-btn" onClick={() => setEditKey(null)}>Cancel</button>
+                        <button type="submit" form="editKeyForm" className="start-btn" disabled={loading}>
+                            {loading ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </>
+                )}
+            >
+                {editKey && (
+                    <form id="editKeyForm" onSubmit={handleUpdateKey}>
+                        <div className="form-group">
+                            <label>Name</label>
+                            <input
+                                type="text"
+                                value={editKey.name}
+                                onChange={(e) => setEditKey({ ...editKey, name: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Key Value</label>
+                            <input
+                                type="text"
+                                value={editKey.fullKey}
+                                onChange={(e) => setEditKey({ ...editKey, fullKey: e.target.value, key: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Model</label>
+                            <input
+                                type="text"
+                                value={editKey.model || 'gemini-2.5-flash'}
+                                onChange={(e) => setEditKey({ ...editKey, model: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Provider</label>
+                            <select
+                                value={editKey.provider || 'gemini'}
+                                onChange={(e) => setEditKey({ ...editKey, provider: e.target.value })}
+                            >
+                                <option value="gemini">Gemini</option>
+                                <option value="openai">OpenAI</option>
+                            </select>
                         </div>
                     </form>
                 )}

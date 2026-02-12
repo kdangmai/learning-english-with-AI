@@ -23,7 +23,7 @@ class EmailService {
   static async sendVerificationEmail(email, token, username) {
     try {
       const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
-      
+
       const mailOptions = {
         from: process.env.SMTP_USER,
         to: email,
@@ -43,7 +43,7 @@ class EmailService {
       return result;
     } catch (error) {
       console.error('Email sending error:', error);
-      throw new Error('Failed to send verification email');
+      throw new Error('Failed to send verification email', { cause: error });
     }
   }
 
@@ -53,7 +53,7 @@ class EmailService {
   static async sendPasswordResetEmail(email, token, username) {
     try {
       const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-      
+
       const mailOptions = {
         from: process.env.SMTP_USER,
         to: email,
@@ -72,7 +72,7 @@ class EmailService {
       return await this.getTransporter().sendMail(mailOptions);
     } catch (error) {
       console.error('Email sending error:', error);
-      throw new Error('Failed to send password reset email');
+      throw new Error('Failed to send password reset email', { cause: error });
     }
   }
 
@@ -96,7 +96,7 @@ class EmailService {
       return await this.getTransporter().sendMail(mailOptions);
     } catch (error) {
       console.error('Email sending error:', error);
-      throw new Error('Failed to send milestone email');
+      throw new Error('Failed to send milestone email', { cause: error });
     }
   }
 }

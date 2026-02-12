@@ -18,6 +18,8 @@ router.get('/users/:userId', adminController.getUserDetails);
 // API Key Management
 router.get('/api-keys', adminController.getApiKeys);
 router.post('/api-keys', adminController.addApiKey);
+router.post('/api-keys/import', adminController.importApiKeys); // Import
+router.put('/api-keys/:id', adminController.updateApiKey); // Update
 router.put('/api-keys/:id/toggle', adminController.toggleApiKey);
 router.delete('/api-keys/:id', adminController.deleteApiKey);
 

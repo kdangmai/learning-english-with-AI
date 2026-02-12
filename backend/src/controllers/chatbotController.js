@@ -221,7 +221,7 @@ exports.endSession = async (req, res) => {
 
 exports.deleteSession = async (req, res) => {
   try {
-    const { sessionId } = req.body; // Use req.body to match the convention if POST, or req.params if DELETE. Let's use body for consistency or verify route.
+
     // Usually DELETE requests use params. But let's check routes.
     // I will use req.body or req.query/params depending on route setup. Let's assume body for now or params.
     // Better to use params for RESTful DELETE. But let's see.

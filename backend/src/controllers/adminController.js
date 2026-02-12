@@ -6,7 +6,7 @@ const Vocabulary = require('../models/Vocabulary');
 const Grammar = require('../models/Grammar');
 const ChatSession = require('../models/ChatSession');
 const Folder = require('../models/Folder');
-const bcrypt = require('bcryptjs');
+
 
 // --- User Management ---
 
@@ -215,7 +215,7 @@ exports.getApiKeys = async (req, res) => {
 
 exports.addApiKey = async (req, res) => {
     try {
-        const { key, name, model, provider } = req.body;
+        const { key, name } = req.body;
         if (!key) {
             return res.status(400).json({ success: false, message: 'API Key is required' });
         }
@@ -232,6 +232,59 @@ exports.addApiKey = async (req, res) => {
     } catch (error) {
         console.error('Add API key error:', error);
         res.status(500).json({ success: false, message: 'Failed to add API key' });
+    }
+};
+
+exports.updateApiKey = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, key, model, provider } = req.body;
+
+        const apiKey = await ApiKey.findById(id);
+        if (!apiKey) return res.status(404).json({ success: false, message: 'Key not found' });
+
+        if (name) apiKey.name = name;
+        if (key) apiKey.key = key;
+        if (model) apiKey.model = model;
+        if (provider) apiKey.provider = provider;
+
+        await apiKey.save();
+        res.json({ success: true, message: 'API Key updated', key: apiKey });
+    } catch (error) {
+        console.error('Update API key error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update API key' });
+    }
+};
+
+exports.importApiKeys = async (req, res) => {
+    try {
+        const { keys } = req.body; // Array of { name, key }
+        if (!Array.isArray(keys) || keys.length === 0) {
+            return res.status(400).json({ success: false, message: 'No keys provided' });
+        }
+
+        let added = 0;
+        let errors = 0;
+
+        for (const k of keys) {
+            if (!k.key) { errors++; continue; }
+            // Check existence
+            const exists = await ApiKey.findOne({ key: k.key });
+            if (exists) { errors++; continue; }
+
+            await new ApiKey({
+                name: k.name || 'Imported Key',
+                key: k.key,
+                model: 'gemini-2.5-flash',
+                provider: 'gemini'
+            }).save();
+            added++;
+        }
+
+        res.json({ success: true, message: `Imported ${added} keys. ${errors} skipped (duplicates/invalid).` });
+    } catch (error) {
+        console.error('Import API keys error:', error);
+        res.status(500).json({ success: false, message: 'Failed to import keys' });
     }
 };
 
@@ -318,6 +371,9 @@ exports.testAllApiKeys = async (req, res) => {
                 success: testResult.success,
                 message: testResult.message
             });
+
+            // Add delay to avoid rate limits (1 second between tests)
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
         res.json({ success: true, results });

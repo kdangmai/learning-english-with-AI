@@ -450,7 +450,7 @@ exports.getMissions = async (req, res) => {
     const [
       todayNewWords,
       masteredVocab,
-      dueReviewCount,
+      , // Skipped dueReviewCount
       totalGrammarExercises,
       todaySentences,
       totalSentences,
@@ -833,7 +833,7 @@ exports.getAllDashboardData = async (req, res) => {
       if (srsResult.success) {
         srsStats = srsResult.stats;
       }
-    } catch (e) {
+    } catch {
       // SRS stats optional
     }
 

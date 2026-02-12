@@ -383,7 +383,7 @@ class ChatbotService {
     const model = await this.getConfig('vocabulary_model');
 
     const operation = async () => {
-      let prompt = '';
+      let prompt;
       const normalizedDiff = difficulty.toUpperCase();
       const headers = "Output text format per line:\nVOCAB: [word] - [Vietnamese meaning]\nGRAMMAR: [Specific Structure Formula/Pattern for this sentence]";
 
@@ -432,7 +432,7 @@ class ChatbotService {
       const result = await this.performWithRetry(operation, 1, 'getSentenceHints');
       appCache.set(cacheKey, result);
       return result;
-    } catch (error) {
+    } catch {
       return { vocabularyHints: [], grammarStructures: [] };
     }
   }
@@ -727,8 +727,8 @@ class ChatbotService {
       ? (model === 'gemini-2.5-flash-native' || model === 'gemini-2.5-flash-native-audio-preview-12-2025' ? 'gemini-2.0-flash-exp' : model)
       : (model === 'gemini-2.5-flash-native' || model === 'gemini-2.5-flash-native-audio-preview-12-2025' ? 'gemini-2.5-flash' : model);
 
-    let prompt = '';
-    let response = '';
+    let prompt;
+    let response;
 
     if (isAudio) {
       prompt = `Act as an expert linguistic examiner for an IELTS Speaking test (Band 9.0 standard).

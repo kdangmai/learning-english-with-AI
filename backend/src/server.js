@@ -50,6 +50,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Error handling middleware
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({

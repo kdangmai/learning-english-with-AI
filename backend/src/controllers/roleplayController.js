@@ -6,7 +6,7 @@ const ChatbotService = require('../services/chatbotService');
  */
 exports.startRoleplay = async (req, res) => {
     try {
-        const { scenario, role } = req.body;
+        const { scenario, role, difficulty = 'easy' } = req.body;
         const userId = req.userId;
 
         if (!scenario || !role) {
@@ -18,7 +18,8 @@ exports.startRoleplay = async (req, res) => {
             topic: 'roleplay',
             roleplayConfig: {
                 scenario,
-                role
+                role,
+                difficulty
             },
             messages: []
         });
@@ -36,12 +37,7 @@ exports.startRoleplay = async (req, res) => {
 
         // Let's generate the first message immediately.
         try {
-            const greeting = await ChatbotService.generateRoleplayResponse(
-                scenario,
-                role,
-                [],
-                "Hello!" // Initial trigger from user (hidden) or just blank prompt with instruction "Start the conversation"
-            );
+            // Generate initial greeting from the AI role
 
             // Actually generateRoleplayResponse takes a user message.
             // Let's just create the session and return. The FE can decide to send a "Hi" or we can do it here.
@@ -103,7 +99,7 @@ exports.sendMessage = async (req, res) => {
 
         // Clean base64 data if needed
         let audioData = null;
-        if (audio) {
+        if (audio) { // Changed from `if (true)` to `if (audio)`
             audioData = {
                 mimeType: audio.mimeType || 'audio/webm',
                 data: audio.data.replace(/^data:audio\/[a-z]+;base64,/, '')

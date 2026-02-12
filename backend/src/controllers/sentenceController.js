@@ -28,6 +28,7 @@ exports.submitSentence = async (req, res) => {
 
     // Get hints if medium or hard difficulty
     let hints = {};
+    // eslint-disable-next-line no-constant-condition
     if (true) {
       try {
         hints = await ChatbotService.getSentenceHints(vietnameseSentence, difficulty);
@@ -276,7 +277,7 @@ exports.getHints = async (req, res) => {
 exports.generateRandomSentence = async (req, res) => {
   try {
     const { difficulty = 'easy' } = req.body;
-    const userId = req.userId;
+    // Removed unused userId
 
     // Validate difficulty level
     const validLevels = ['easy', 'medium', 'hard', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];

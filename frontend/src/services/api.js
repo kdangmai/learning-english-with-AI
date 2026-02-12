@@ -130,12 +130,46 @@ export const chatbotAPI = {
 
 // Dashboard endpoints
 export const dashboardAPI = {
+  // Combined endpoint
+  getAllData: () => apiClient.get('/dashboard/all'),
+
+  // Individual endpoints (if needed)
   getOverview: () => apiClient.get('/dashboard/overview'),
   getGrammarProgress: () => apiClient.get('/dashboard/grammar-progress'),
   getVocabularyStats: () => apiClient.get('/dashboard/vocabulary-stats'),
   getSessionStats: () => apiClient.get('/dashboard/session-stats'),
   getWeeklyReport: () => apiClient.get('/dashboard/weekly-report'),
-  getMonthlyReport: () => apiClient.get('/dashboard/monthly-report')
+  getMonthlyReport: () => apiClient.get('/dashboard/monthly-report'),
+
+  // Missions & Level
+  getMissions: () => apiClient.get('/dashboard/missions'),
+  claimMission: (missionId, xp) => apiClient.post('/dashboard/claim-mission', { missionId, xp })
+};
+
+// Admin endpoints
+export const adminAPI = {
+  // Users
+  getUsers: () => apiClient.get('/admin/users'),
+  createUser: (data) => apiClient.post('/admin/users', data),
+  updateUser: (userId, data) => apiClient.put(`/admin/users/${userId}`, data),
+  deleteUser: (userId) => apiClient.delete(`/admin/users/${userId}`),
+
+  // API Keys
+  getApiKeys: () => apiClient.get('/admin/api-keys'),
+  createApiKey: (data) => apiClient.post('/admin/api-keys', data),
+  updateApiKey: (id, data) => apiClient.put(`/admin/api-keys/${id}`, data),
+  importApiKeys: (keys) => apiClient.post('/admin/api-keys/import', { keys }),
+  getApiKeyStats: () => apiClient.get('/admin/api-keys/stats'),
+  toggleApiKey: (keyId) => apiClient.put(`/admin/api-keys/${keyId}/toggle`),
+  deleteApiKey: (keyId) => apiClient.delete(`/admin/api-keys/${keyId}`),
+  testApiKey: (key) => apiClient.post('/admin/api-keys/test', { key }),
+  testAllApiKeys: () => apiClient.post('/admin/api-keys/test-all'),
+  activateBatchApiKeys: (ids) => apiClient.post('/admin/api-keys/activate-batch', { ids }),
+  deleteBatchApiKeys: (ids) => apiClient.post('/admin/api-keys/delete-batch', { ids }),
+
+  // Config
+  getConfig: () => apiClient.get('/admin/config'),
+  updateConfig: (key, value) => apiClient.put('/admin/config', { key, value })
 };
 
 export default apiClient;

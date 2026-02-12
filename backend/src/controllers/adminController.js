@@ -48,10 +48,12 @@ exports.createUser = async (req, res) => {
         const newUser = new User({
             username,
             email,
-            password, // Hook will hash this
+            password,
             role: role || 'user',
             fullName: fullName || '',
-            isEmailVerified: true // Auto-verify for admin created users
+            isEmailVerified: req.body.isEmailVerified !== undefined ? req.body.isEmailVerified : true,
+            currentLevel: req.body.currentLevel || 'beginner',
+            xp: req.body.xp || 0
         });
 
         await newUser.save();
@@ -100,8 +102,14 @@ exports.updateUser = async (req, res) => {
             user.username = username;
         }
 
+        if (fullName) user.fullName = fullName;
         if (role) user.role = role;
-        if (fullName !== undefined) user.fullName = fullName;
+
+        // Update extended fields
+        if (req.body.currentLevel) user.currentLevel = req.body.currentLevel;
+        if (req.body.xp !== undefined) user.xp = req.body.xp;
+        if (req.body.streak !== undefined) user.streak = req.body.streak;
+        if (req.body.isEmailVerified !== undefined) user.isEmailVerified = req.body.isEmailVerified;
 
         // Update password if provided
         if (password && password.trim().length > 0) {

@@ -457,7 +457,9 @@ exports.getMissions = async (req, res) => {
       roleplaySessions,
       totalReviews,
       todayChatSessions,
-      perfectSentences
+      perfectSentences,
+      todayReviewsCount,  // New: Today's review count
+      allSessions         // New: All sessions for total time
     ] = await Promise.all([
       Vocabulary.countDocuments({
         userId, createdAt: { $gte: today }
@@ -500,17 +502,28 @@ exports.getMissions = async (req, res) => {
       }),
       Sentence.countDocuments({
         userId, 'feedback.score': { $gte: 9 }
-      })
+      }),
+      Vocabulary.countDocuments({
+        userId, 'srs.lastReviewed': { $gte: today }
+      }),
+      ChatSession.find({ userId }).select('sessionDuration')
     ]);
 
-    const grammarTotal =
-      totalGrammarExercises[0]?.total || 0;
+    const grammarTotal = totalGrammarExercises[0]?.total || 0;
     const reviewTotal = totalReviews[0]?.total || 0;
     const claimed = user?.claimedMissions || [];
     const todayStr = new Date().toISOString().slice(0, 10);
 
+    // Calculate total hours
+    let totalTimeSeconds = 0;
+    allSessions.forEach(s => {
+      if (s.sessionDuration) totalTimeSeconds += s.sessionDuration;
+    });
+    const totalHours = Math.round((totalTimeSeconds / 3600) * 10) / 10; // 1 decimal place
+
     // Build missions dynamically
     const missions = [
+      // --- DAILY MISSIONS ---
       {
         id: `daily-vocab-${todayStr}`,
         type: 'daily',
@@ -520,14 +533,25 @@ exports.getMissions = async (req, res) => {
         description: 'Thêm 5 từ vựng mới vào kho từ của bạn',
         target: 5,
         current: Math.min(todayNewWords, 5),
-        progress: Math.min(
-          (todayNewWords / 5) * 100, 100
-        ),
+        progress: Math.min((todayNewWords / 5) * 100, 100),
         completed: todayNewWords >= 5,
-        claimed: claimed.includes(
-          `daily-vocab-${todayStr}`
-        ),
+        claimed: claimed.includes(`daily-vocab-${todayStr}`),
         xp: 20,
+        link: '/vocabulary'
+      },
+      {
+        id: `daily-review-${todayStr}`,
+        type: 'daily',
+        category: 'vocabulary',
+        icon: '🔄',
+        title: 'Ôn tập 10 từ vựng',
+        description: 'Hoàn thành 10 lượt ôn tập từ vựng hôm nay',
+        target: 10,
+        current: Math.min(todayReviewsCount, 10),
+        progress: Math.min((todayReviewsCount / 10) * 100, 100),
+        completed: todayReviewsCount >= 10,
+        claimed: claimed.includes(`daily-review-${todayStr}`),
+        xp: 30, // Higher XP for review habit
         link: '/vocabulary'
       },
       {
@@ -539,13 +563,9 @@ exports.getMissions = async (req, res) => {
         description: 'Nộp 3 bài luyện dịch câu',
         target: 3,
         current: Math.min(todaySentences, 3),
-        progress: Math.min(
-          (todaySentences / 3) * 100, 100
-        ),
+        progress: Math.min((todaySentences / 3) * 100, 100),
         completed: todaySentences >= 3,
-        claimed: claimed.includes(
-          `daily-sentence-${todayStr}`
-        ),
+        claimed: claimed.includes(`daily-sentence-${todayStr}`),
         xp: 20,
         link: '/sentence-writing'
       },
@@ -558,16 +578,16 @@ exports.getMissions = async (req, res) => {
         description: 'Bắt đầu 1 phiên chat với AI tutor',
         target: 1,
         current: Math.min(todayChatSessions, 1),
-        progress: Math.min(
-          todayChatSessions * 100, 100
-        ),
+        progress: Math.min(todayChatSessions * 100, 100),
         completed: todayChatSessions >= 1,
-        claimed: claimed.includes(
-          `daily-chat-${todayStr}`
-        ),
+        claimed: claimed.includes(`daily-chat-${todayStr}`),
         xp: 15,
         link: '/chatbot'
       },
+
+      // --- MILESTONE MISSIONS (CUMULATIVE) ---
+
+      // Vocabulary Milestones
       {
         id: 'milestone-vocab-50',
         type: 'milestone',
@@ -577,14 +597,44 @@ exports.getMissions = async (req, res) => {
         description: 'Đạt trạng thái thành thạo 50 từ',
         target: 50,
         current: Math.min(masteredVocab, 50),
-        progress: Math.min(
-          (masteredVocab / 50) * 100, 100
-        ),
+        progress: Math.min((masteredVocab / 50) * 100, 100),
         completed: masteredVocab >= 50,
         claimed: claimed.includes('milestone-vocab-50'),
         xp: 100,
         link: '/vocabulary'
       },
+      {
+        id: 'milestone-vocab-100',
+        type: 'milestone',
+        category: 'vocabulary',
+        icon: '🏆',
+        title: 'Thành thạo 100 từ vựng',
+        description: 'Đạt trạng thái thành thạo 100 từ',
+        target: 100,
+        current: Math.min(masteredVocab, 100),
+        progress: Math.min((masteredVocab / 100) * 100, 100),
+        completed: masteredVocab >= 100,
+        claimed: claimed.includes('milestone-vocab-100'),
+        xp: 200,
+        link: '/vocabulary'
+      },
+      {
+        id: 'milestone-vocab-500',
+        type: 'milestone',
+        category: 'vocabulary',
+        icon: '💎',
+        title: 'Từ điển sống (500 từ)',
+        description: 'Đạt trạng thái thành thạo 500 từ',
+        target: 500,
+        current: Math.min(masteredVocab, 500),
+        progress: Math.min((masteredVocab / 500) * 100, 100),
+        completed: masteredVocab >= 500,
+        claimed: claimed.includes('milestone-vocab-500'),
+        xp: 500,
+        link: '/vocabulary'
+      },
+
+      // Grammar Milestones
       {
         id: 'milestone-grammar-50',
         type: 'milestone',
@@ -594,16 +644,14 @@ exports.getMissions = async (req, res) => {
         description: 'Làm tổng cộng 50 bài tập ngữ pháp',
         target: 50,
         current: Math.min(grammarTotal, 50),
-        progress: Math.min(
-          (grammarTotal / 50) * 100, 100
-        ),
+        progress: Math.min((grammarTotal / 50) * 100, 100),
         completed: grammarTotal >= 50,
-        claimed: claimed.includes(
-          'milestone-grammar-50'
-        ),
+        claimed: claimed.includes('milestone-grammar-50'),
         xp: 100,
         link: '/grammar'
       },
+
+      // Sentence Milestones
       {
         id: 'milestone-sentence-20',
         type: 'milestone',
@@ -613,14 +661,25 @@ exports.getMissions = async (req, res) => {
         description: 'Tổng cộng 20 câu đã luyện dịch',
         target: 20,
         current: Math.min(totalSentences, 20),
-        progress: Math.min(
-          (totalSentences / 20) * 100, 100
-        ),
+        progress: Math.min((totalSentences / 20) * 100, 100),
         completed: totalSentences >= 20,
-        claimed: claimed.includes(
-          'milestone-sentence-20'
-        ),
+        claimed: claimed.includes('milestone-sentence-20'),
         xp: 80,
+        link: '/sentence-writing'
+      },
+      {
+        id: 'milestone-sentence-100',
+        type: 'milestone',
+        category: 'sentence',
+        icon: '🔥',
+        title: 'Chiến thần dịch thuật (100 câu)',
+        description: 'Tổng cộng 100 câu đã luyện dịch',
+        target: 100,
+        current: Math.min(totalSentences, 100),
+        progress: Math.min((totalSentences / 100) * 100, 100),
+        completed: totalSentences >= 100,
+        claimed: claimed.includes('milestone-sentence-100'),
+        xp: 250,
         link: '/sentence-writing'
       },
       {
@@ -632,16 +691,14 @@ exports.getMissions = async (req, res) => {
         description: 'Nhận điểm 9 trở lên ở 5 bài dịch',
         target: 5,
         current: Math.min(perfectSentences, 5),
-        progress: Math.min(
-          (perfectSentences / 5) * 100, 100
-        ),
+        progress: Math.min((perfectSentences / 5) * 100, 100),
         completed: perfectSentences >= 5,
-        claimed: claimed.includes(
-          'milestone-perfect-5'
-        ),
+        claimed: claimed.includes('milestone-perfect-5'),
         xp: 80,
         link: '/sentence-writing'
       },
+
+      // Review Milestones
       {
         id: 'milestone-review-100',
         type: 'milestone',
@@ -651,16 +708,14 @@ exports.getMissions = async (req, res) => {
         description: 'Tổng cộng 100 lượt ôn tập SRS',
         target: 100,
         current: Math.min(reviewTotal, 100),
-        progress: Math.min(
-          (reviewTotal / 100) * 100, 100
-        ),
+        progress: Math.min((reviewTotal / 100) * 100, 100),
         completed: reviewTotal >= 100,
-        claimed: claimed.includes(
-          'milestone-review-100'
-        ),
+        claimed: claimed.includes('milestone-review-100'),
         xp: 80,
         link: '/vocabulary'
       },
+
+      // Roleplay Milestones
       {
         id: 'milestone-roleplay-3',
         type: 'milestone',
@@ -670,16 +725,48 @@ exports.getMissions = async (req, res) => {
         description: 'Đóng vai 3 kịch bản khác nhau',
         target: 3,
         current: Math.min(roleplaySessions, 3),
-        progress: Math.min(
-          (roleplaySessions / 3) * 100, 100
-        ),
+        progress: Math.min((roleplaySessions / 3) * 100, 100),
         completed: roleplaySessions >= 3,
-        claimed: claimed.includes(
-          'milestone-roleplay-3'
-        ),
+        claimed: claimed.includes('milestone-roleplay-3'),
         xp: 60,
         link: '/roleplay'
-      }
+      },
+
+      // Learning Time Milestones
+      {
+        id: 'milestone-hours-10',
+        type: 'milestone',
+        category: 'general',
+        icon: '⏳',
+        title: 'Học tập chăm chỉ (10 giờ)',
+        description: 'Tổng thời gian học trên nền tảng đạt 10 giờ',
+        target: 10,
+        current: Math.min(totalHours, 10),
+        progress: Math.min((totalHours / 10) * 100, 100),
+        completed: totalHours >= 10,
+        claimed: claimed.includes('milestone-hours-10'),
+        xp: 150,
+        link: '/dashboard'
+      },
+      {
+        id: 'milestone-hours-50',
+        type: 'milestone',
+        category: 'general',
+        icon: '🕰️',
+        title: 'Chuyên gia sinh ngữ (50 giờ)',
+        description: 'Tổng thời gian học trên nền tảng đạt 50 giờ',
+        target: 50,
+        current: Math.min(totalHours, 50),
+        progress: Math.min((totalHours / 50) * 100, 100),
+        completed: totalHours >= 50,
+        claimed: claimed.includes('milestone-hours-50'),
+        xp: 500,
+        link: '/dashboard'
+      },
+
+      // Streak Milestones (using calculated streak below, wait.. streak is calculated later in code)
+      // I need to use user.streak directly here or move calculation up?
+      // user.streak is available from getUser call.
     ];
 
     // Calculate streak
@@ -697,27 +784,82 @@ exports.getMissions = async (req, res) => {
       } else if (
         lastActiveDay.getTime() === yesterday.getTime()
       ) {
-        // Active yesterday - increment streak
-        streak += 1;
-        await User.findByIdAndUpdate(userId, {
-          streak,
-          lastActiveDate: new Date()
-        });
+        // Active yesterday - increment streak (only if not already done today)
+        // Note: Actual streak update happens on login/activity, here we just read it.
+        // If we strictly rely on user.streak from DB, we use that.
+        // Assuming user.streak is updated elsewhere or above (it was updated in the original code? Yes, below.)
       } else {
-        // Streak broken
+        // Streak broken if we missed a day. 
+        // The original code updated the DB. We should keep that logic.
+      }
+    }
+
+    // ORIGINAL STREAK LOGIC MOVED UP
+    if (lastActive) {
+      const lastActiveDay = new Date(lastActive);
+      lastActiveDay.setHours(0, 0, 0, 0);
+      if (lastActiveDay.getTime() === today.getTime()) {
+        // Already active today
+      } else if (lastActiveDay.getTime() === yesterday.getTime()) {
+        streak += 1;
+        await User.findByIdAndUpdate(userId, { streak, lastActiveDate: new Date() });
+      } else {
         streak = 1;
-        await User.findByIdAndUpdate(userId, {
-          streak: 1,
-          lastActiveDate: new Date()
-        });
+        await User.findByIdAndUpdate(userId, { streak: 1, lastActiveDate: new Date() });
       }
     } else {
       streak = 1;
-      await User.findByIdAndUpdate(userId, {
-        streak: 1,
-        lastActiveDate: new Date()
-      });
+      await User.findByIdAndUpdate(userId, { streak: 1, lastActiveDate: new Date() });
     }
+
+    // Append Streak Missions
+    missions.push(
+      {
+        id: 'milestone-streak-3',
+        type: 'milestone',
+        category: 'general',
+        icon: '🔥',
+        title: 'Khởi đầu bền bỉ (3 ngày)',
+        description: 'Duy trì chuỗi học tập 3 ngày liên tiếp',
+        target: 3,
+        current: Math.min(streak, 3),
+        progress: Math.min((streak / 3) * 100, 100),
+        completed: streak >= 3,
+        claimed: claimed.includes('milestone-streak-3'),
+        xp: 50,
+        link: '/dashboard'
+      },
+      {
+        id: 'milestone-streak-7',
+        type: 'milestone',
+        category: 'general',
+        icon: '📅',
+        title: 'Thói quen tốt (7 ngày)',
+        description: 'Duy trì chuỗi học tập 7 ngày liên tiếp',
+        target: 7,
+        current: Math.min(streak, 7),
+        progress: Math.min((streak / 7) * 100, 100),
+        completed: streak >= 7,
+        claimed: claimed.includes('milestone-streak-7'),
+        xp: 150,
+        link: '/dashboard'
+      },
+      {
+        id: 'milestone-streak-30',
+        type: 'milestone',
+        category: 'general',
+        icon: '👑',
+        title: 'Tinh thần thép (30 ngày)',
+        description: 'Duy trì chuỗi học tập 30 ngày liên tiếp',
+        target: 30,
+        current: Math.min(streak, 30),
+        progress: Math.min((streak / 30) * 100, 100),
+        completed: streak >= 30,
+        claimed: claimed.includes('milestone-streak-30'),
+        xp: 500,
+        link: '/dashboard'
+      }
+    );
 
     const xp = user?.xp || 0;
     const levelInfo = calculateLevel(xp);

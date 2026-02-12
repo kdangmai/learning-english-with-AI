@@ -18,6 +18,7 @@ export default function AdminDashboard() {
     const { success, error } = useToast();
     const [activeTab, setActiveTab] = useState('users');
     const [loading, setLoading] = useState(false);
+    const [loadingText, setLoadingText] = useState(''); // Text to show while loading
 
     // Data State
     const [users, setUsers] = useState([]);
@@ -152,6 +153,7 @@ export default function AdminDashboard() {
 
     const fetchUsers = useCallback(async () => {
         setLoading(true);
+        setLoadingText('Loading users...');
         try {
             const { data } = await adminAPI.getUsers();
             if (data.success) {
@@ -181,6 +183,7 @@ export default function AdminDashboard() {
 
     const fetchApiKeys = useCallback(async () => {
         setLoading(true);
+        setLoadingText('Loading API keys...');
         try {
             const { data } = await adminAPI.getApiKeys();
             if (data.success) {
@@ -203,6 +206,7 @@ export default function AdminDashboard() {
 
     const fetchConfig = useCallback(async () => {
         setLoading(true);
+        setLoadingText('Loading config...');
         try {
             const { data } = await adminAPI.getConfig();
             if (data.success) {
@@ -242,6 +246,7 @@ export default function AdminDashboard() {
     const handleCreateUser = async (e) => {
         e.preventDefault();
         setLoading(true);
+        setLoadingText('Creating user...');
         try {
             const { data } = await adminAPI.createUser(newUserData);
 
@@ -271,6 +276,7 @@ export default function AdminDashboard() {
     const handleUpdateUser = async (e) => {
         e.preventDefault();
         setLoading(true);
+        setLoadingText('Updating user...');
         try {
             const { data } = await adminAPI.updateUser(editUser._id, editUser);
 
@@ -315,6 +321,7 @@ export default function AdminDashboard() {
 
     const handleTestAllKeys = async () => {
         setLoading(true);
+        setLoadingText('Testing all keys (this may take a moment)...');
         try {
             const { data } = await adminAPI.testAllApiKeys();
             if (data.success) {
@@ -480,6 +487,7 @@ export default function AdminDashboard() {
     const handleUpdateKey = async (e) => {
         e.preventDefault();
         setLoading(true);
+        setLoadingText('Updating key...');
         try {
             const { data } = await adminAPI.updateApiKey(editKey._id, editKey);
             if (data.success) {
@@ -543,6 +551,7 @@ export default function AdminDashboard() {
                 }
 
                 setLoading(true);
+                setLoadingText(`Importing ${keysToImport.length} keys...`);
                 const { data } = await adminAPI.importApiKeys(keysToImport);
                 if (data.success) {
                     success(data.message);
@@ -723,7 +732,10 @@ export default function AdminDashboard() {
                                 </thead>
                                 <tbody>
                                     {loading ? (
-                                        <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>Loading...</td></tr>
+                                        <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>
+                                            <div className="loading-spinner"></div>
+                                            <p>{loadingText || 'Loading...'}</p>
+                                        </td></tr>
                                     ) : filteredUsers.length === 0 ? (
                                         <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
                                             {userSearch ? 'No users match your search' : 'No users found'}
@@ -910,7 +922,10 @@ export default function AdminDashboard() {
                                 </thead>
                                 <tbody>
                                     {loading && apiKeys.length === 0 ? (
-                                        <tr><td colSpan="6" style={{ textAlign: 'center' }}>Loading...</td></tr>
+                                        <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px' }}>
+                                            <div className="loading-spinner"></div>
+                                            <p>{loadingText || 'Loading...'}</p>
+                                        </td></tr>
                                     ) : apiKeys.map(k => {
                                         const stat = keyStats.stats[k.fullKey] || { uses: 0, failures: 0, lastUsed: 0 };
                                         const cooldown = keyStats.cooldowns[k.fullKey] || 0;

@@ -360,28 +360,37 @@ exports.testAllApiKeys = async (req, res) => {
             details: []
         };
 
-        for (const keyDoc of keys) {
-            // Test the key
-            const testResult = await ChatbotService.testKey(keyDoc.key, keyDoc.model || 'gemini-2.5-flash', keyDoc.provider || 'gemini');
+        // Helper for concurrency control
+        const limit = 5; // Test 5 keys at a time
+        const chunks = [];
+        for (let i = 0; i < keys.length; i += limit) {
+            chunks.push(keys.slice(i, i + limit));
+        }
 
-            // Update status based on test result
-            if (testResult.success) {
-                keyDoc.isActive = true;
-                results.success++;
-            } else {
-                keyDoc.isActive = false;
-                results.failed++;
+        for (const chunk of chunks) {
+            await Promise.all(chunk.map(async (keyDoc) => {
+                const testResult = await ChatbotService.testKey(keyDoc.key, keyDoc.model || 'gemini-2.5-flash', keyDoc.provider || 'gemini');
+
+                if (testResult.success) {
+                    keyDoc.isActive = true;
+                    results.success++;
+                } else {
+                    keyDoc.isActive = false;
+                    results.failed++;
+                }
+                await keyDoc.save();
+
+                results.details.push({
+                    name: keyDoc.name,
+                    success: testResult.success,
+                    message: testResult.message
+                });
+            }));
+
+            // Small delay between chunks to be nice to the API provider
+            if (chunks.indexOf(chunk) < chunks.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
-            await keyDoc.save();
-
-            results.details.push({
-                name: keyDoc.name,
-                success: testResult.success,
-                message: testResult.message
-            });
-
-            // Add delay to avoid rate limits (1 second between tests)
-            await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
         res.json({ success: true, results });

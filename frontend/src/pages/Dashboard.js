@@ -105,7 +105,7 @@ const LEVEL_THRESHOLDS = {
 const LEVEL_ORDER = ['beginner', 'elementary', 'intermediate', 'upper-intermediate', 'advanced', 'expert', 'master', 'legend'];
 
 const CATEGORY_LABEL = {
-  vocabulary: '📖 Từ vựng', grammar: '📐 Ngữ pháp', sentence: '✍️ Luyện dịch', communication: '💬 Giao tiếp'
+  vocabulary: '📖 Từ vựng', grammar: '📐 Ngữ pháp', sentence: '✍️ Luyện dịch', communication: '💬 Giao tiếp', general: '🏆 Chung'
 };
 
 const QUICK_ACTIONS = [
@@ -821,6 +821,7 @@ export function Dashboard() {
               { key: 'grammar', label: '📐 Ngữ pháp' },
               { key: 'sentence', label: '✍️ Luyện dịch' },
               { key: 'communication', label: '💬 Giao tiếp' },
+              { key: 'general', label: '🏆 Chung' },
             ].map(f => (
               <button
                 key={f.key}

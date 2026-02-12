@@ -12,6 +12,7 @@ router.use(adminAuth);
 router.get('/users', adminController.getAllUsers);
 router.post('/users', adminController.createUser);
 router.put('/users/:userId', adminController.updateUser); // New Endpoint
+router.delete('/users/:userId', adminController.deleteUser);
 router.get('/users/:userId', adminController.getUserDetails);
 
 // API Key Management

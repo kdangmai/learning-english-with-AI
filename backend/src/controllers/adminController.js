@@ -2,6 +2,10 @@ const User = require('../models/User');
 const Sentence = require('../models/Sentence');
 const ApiKey = require('../models/ApiKey');
 const SystemSetting = require('../models/SystemSetting');
+const Vocabulary = require('../models/Vocabulary');
+const Grammar = require('../models/Grammar');
+const ChatSession = require('../models/ChatSession');
+const Folder = require('../models/Folder');
 const bcrypt = require('bcryptjs');
 
 // --- User Management ---
@@ -143,6 +147,42 @@ exports.getUserDetails = async (req, res) => {
     } catch (error) {
         console.error('Get user details error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch user details' });
+    }
+};
+
+/**
+ * Delete a user and all their data (Admin function).
+ * @route DELETE /api/admin/users/:userId
+ */
+exports.deleteUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Prevent deleting admin accounts
+        if (user.role === 'admin') {
+            return res.status(403).json({ success: false, message: 'Cannot delete admin accounts' });
+        }
+
+        // Cascade delete all user data
+        await Promise.all([
+            Vocabulary.deleteMany({ userId }),
+            Grammar.deleteMany({ userId }),
+            Sentence.deleteMany({ userId }),
+            ChatSession.deleteMany({ userId }),
+            Folder.deleteMany({ userId }),
+        ]);
+
+        await User.findByIdAndDelete(userId);
+
+        res.json({ success: true, message: `User "${user.username}" and all related data deleted successfully` });
+    } catch (error) {
+        console.error('Delete user error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete user' });
     }
 };
 

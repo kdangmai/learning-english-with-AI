@@ -1,20 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useUserStore } from '../store/store';
 import Modal from '../components/common/Modal';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { useToast } from '../context/ToastContext';
 import './AdminDashboard.css';
 
+const LEVEL_COLORS = {
+    beginner: '#94a3b8', elementary: '#22c55e', intermediate: '#3b82f6',
+    'upper-intermediate': '#8b5cf6', advanced: '#f59e0b', expert: '#ef4444',
+    master: '#ec4899', legend: '#eab308'
+};
+
 export default function AdminDashboard() {
     const { user } = useUserStore();
     const { success, error, info } = useToast();
-    const [activeTab, setActiveTab] = useState('users'); // 'users' | 'apikeys' | 'config'
+    const [activeTab, setActiveTab] = useState('users');
     const [loading, setLoading] = useState(false);
 
     // Data State
     const [users, setUsers] = useState([]);
     const [apiKeys, setApiKeys] = useState([]);
     const [selectedKeys, setSelectedKeys] = useState(new Set());
+
+    // System Stats
+    const [systemStats, setSystemStats] = useState(null);
 
     // Add User State
     const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -28,7 +37,12 @@ export default function AdminDashboard() {
     });
 
     // Edit User State
-    const [editUser, setEditUser] = useState(null); // null when closed, object when open
+    const [editUser, setEditUser] = useState(null);
+
+    // Search / Filter
+    const [userSearch, setUserSearch] = useState('');
+    const [userRoleFilter, setUserRoleFilter] = useState('all');
+    const [userSort, setUserSort] = useState('newest');
 
     // Form State
     const [newKeyName, setNewKeyName] = useState('');
@@ -36,30 +50,100 @@ export default function AdminDashboard() {
     const [config, setConfig] = useState({});
     const [originalConfig, setOriginalConfig] = useState({});
 
-    // Models are now loaded from the backend
-    // Models are now loaded from the backend
+    // Models loaded from backend
     const [availableModels, setAvailableModels] = useState([]);
 
     // Monitoring State
     const [keyStats, setKeyStats] = useState({ stats: {}, cooldowns: {} });
 
+    // Track which key is being tested
+    const [testingKeyId, setTestingKeyId] = useState(null);
+
+    // Cache: prevent re-fetching tab data when switching tabs
+    const tabDataLoaded = useRef({ users: false, apikeys: false, config: false });
+
+    // Memoized config comparison
+    const hasConfigChanges = useMemo(() => {
+        const keys = Object.keys(config);
+        return keys.some(key => config[key] !== originalConfig[key]);
+    }, [config, originalConfig]);
+
+    // Filtered and sorted users
+    const filteredUsers = useMemo(() => {
+        let result = [...users];
+
+        // Search filter
+        if (userSearch.trim()) {
+            const q = userSearch.toLowerCase();
+            result = result.filter(u =>
+                u.username.toLowerCase().includes(q) ||
+                u.email.toLowerCase().includes(q) ||
+                (u.fullName && u.fullName.toLowerCase().includes(q))
+            );
+        }
+
+        // Role filter
+        if (userRoleFilter !== 'all') {
+            result = result.filter(u => u.role === userRoleFilter);
+        }
+
+        // Sort
+        switch (userSort) {
+            case 'newest':
+                result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                break;
+            case 'oldest':
+                result.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+                break;
+            case 'name':
+                result.sort((a, b) => (a.fullName || a.username).localeCompare(b.fullName || b.username));
+                break;
+            case 'xp':
+                result.sort((a, b) => (b.xp || 0) - (a.xp || 0));
+                break;
+            default: break;
+        }
+
+        return result;
+    }, [users, userSearch, userRoleFilter, userSort]);
+
+    // System stats computation
+    const computedStats = useMemo(() => {
+        if (!users.length) return null;
+        const totalUsers = users.length;
+        const adminCount = users.filter(u => u.role === 'admin').length;
+        const verifiedCount = users.filter(u => u.isEmailVerified).length;
+        const totalXP = users.reduce((sum, u) => sum + (u.xp || 0), 0);
+        const activeKeys = apiKeys.filter(k => k.isActive).length;
+
+        return {
+            totalUsers,
+            adminCount,
+            verifiedCount,
+            totalXP,
+            activeKeys,
+            totalKeys: apiKeys.length,
+            verifiedPercent: totalUsers > 0 ? Math.round((verifiedCount / totalUsers) * 100) : 0
+        };
+    }, [users, apiKeys]);
+
     useEffect(() => {
         let interval;
         if (activeTab === 'users') {
-            fetchUsers();
+            if (!tabDataLoaded.current.users) fetchUsers();
         } else if (activeTab === 'apikeys') {
-            fetchApiKeys();
-            fetchKeyStats(); // Initial fetch
-            interval = setInterval(fetchKeyStats, 5000); // Poll every 5s
+            if (!tabDataLoaded.current.apikeys) fetchApiKeys();
+            fetchKeyStats();
+            interval = setInterval(fetchKeyStats, 5000);
         } else if (activeTab === 'config') {
-            fetchConfig();
+            if (!tabDataLoaded.current.config) fetchConfig();
         }
         return () => {
             if (interval) clearInterval(interval);
         };
     }, [activeTab]);
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch('/api/admin/users', {
@@ -68,15 +152,16 @@ export default function AdminDashboard() {
             const data = await response.json();
             if (data.success) {
                 setUsers(data.users);
+                tabDataLoaded.current.users = true;
             }
-        } catch (error) {
-            console.error('Fetch users error:', error);
+        } catch (err) {
+            console.error('Fetch users error:', err);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const fetchKeyStats = async () => {
+    const fetchKeyStats = useCallback(async () => {
         try {
             const response = await fetch('/api/admin/api-keys/stats', {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -88,12 +173,12 @@ export default function AdminDashboard() {
                     cooldowns: data.cooldowns || {}
                 });
             }
-        } catch (error) {
-            console.error('Fetch stats error:', error);
+        } catch (err) {
+            console.error('Fetch stats error:', err);
         }
-    };
+    }, []);
 
-    const fetchApiKeys = async () => {
+    const fetchApiKeys = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch('/api/admin/api-keys', {
@@ -101,23 +186,24 @@ export default function AdminDashboard() {
             });
             const data = await response.json();
             if (data.success) {
-                // Merge masked keys with full keys for copy functionality
-                // We rely on index matching or ID matching
-                const mergedKeys = data.keys.map(maskedKey => {
-                    const fullKeyObj = data.fullKeys.find(fk => fk._id === maskedKey._id);
-                    return { ...maskedKey, fullKey: fullKeyObj ? fullKeyObj.key : '' };
-                });
+                const fullKeyMap = {};
+                (data.fullKeys || []).forEach(fk => { fullKeyMap[fk._id] = fk.key; });
+                const mergedKeys = data.keys.map(maskedKey => ({
+                    ...maskedKey,
+                    fullKey: fullKeyMap[maskedKey._id] || ''
+                }));
                 setApiKeys(mergedKeys);
-                setSelectedKeys(new Set()); // Reset selection on refresh
+                setSelectedKeys(new Set());
+                tabDataLoaded.current.apikeys = true;
             }
-        } catch (error) {
-            console.error('Fetch keys error:', error);
+        } catch (err) {
+            console.error('Fetch keys error:', err);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const fetchConfig = async () => {
+    const fetchConfig = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch('/api/admin/config', {
@@ -128,27 +214,24 @@ export default function AdminDashboard() {
                 setConfig(data.config);
                 setOriginalConfig(data.config);
                 setAvailableModels(data.models || []);
+                tabDataLoaded.current.config = true;
             }
-        } catch (error) {
-            console.error('Fetch config error:', error);
+        } catch (err) {
+            console.error('Fetch config error:', err);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const handleConfigChange = (key, value) => {
-        // Only update local state
+    const handleConfigChange = useCallback((key, value) => {
         setConfig(prev => ({ ...prev, [key]: value }));
-    };
+    }, []);
 
     const handleSaveConfig = async () => {
-        // Find changed keys
         const changedKeys = Object.keys(config).filter(key => config[key] !== originalConfig[key]);
-
         if (changedKeys.length === 0) return;
 
         try {
-            // Update each changed setting
             for (const key of changedKeys) {
                 await fetch('/api/admin/config', {
                     method: 'PUT',
@@ -160,9 +243,8 @@ export default function AdminDashboard() {
                 });
             }
 
-            setOriginalConfig({ ...config }); // Sync original with current
+            setOriginalConfig({ ...config });
             success('Changes saved successfully!');
-
         } catch (error) {
             console.error('Save config error:', error);
             error('Failed to save settings.');
@@ -202,7 +284,7 @@ export default function AdminDashboard() {
     const handleEditClick = (user) => {
         setEditUser({
             ...user,
-            password: '' // Reset password field for security/optionality
+            password: ''
         });
     };
 
@@ -235,6 +317,36 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleDeleteUser = async (userId, username) => {
+        setConfirmConfig({
+            title: 'Delete User',
+            message: `Are you sure you want to delete user "${username}"? This will remove all their data permanently.`,
+            variant: 'danger',
+            confirmText: 'Delete User',
+            onConfirm: async () => {
+                try {
+                    const response = await fetch(`/api/admin/users/${userId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        success(`User "${username}" deleted successfully`);
+                        setConfirmConfig(null);
+                        fetchUsers();
+                    } else {
+                        error(data.message || 'Failed to delete user');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    error('Failed to delete user');
+                }
+            }
+        });
+    };
+
     const handleTestAllKeys = async () => {
         setLoading(true);
         try {
@@ -260,9 +372,6 @@ export default function AdminDashboard() {
 
     const handleBatchActivate = async () => {
         if (selectedKeys.size === 0) return;
-        // if (!window.confirm(`Are you sure you want to activate ${selectedKeys.size} keys?`)) return; 
-        // Activation is non-destructive, maybe no confirm needed? Let's verify with popup result.
-
         try {
             const response = await fetch('/api/admin/api-keys/activate-batch', {
                 method: 'POST',
@@ -361,23 +470,8 @@ export default function AdminDashboard() {
         }
     };
 
-    const handleTestKey = async () => {
-        if (!newKeyValue) return error("Please enter an API Key to test.");
-        await performKeyTest(newKeyValue, 'test-btn');
-    };
-
-    const handleTestExistingKey = async (key) => {
-        if (!key) return error("Key not available for testing.");
-        await performKeyTest(key);
-    };
-
-    const performKeyTest = async (key, btnId = null) => {
-        let originalText = '';
-        if (btnId) {
-            originalText = document.getElementById(btnId).innerText;
-            document.getElementById(btnId).innerText = "Testing...";
-            document.getElementById(btnId).disabled = true;
-        }
+    const performKeyTest = useCallback(async (key, isNewKey = false) => {
+        setTestingKeyId(isNewKey ? '__new__' : key);
 
         try {
             const response = await fetch('/api/admin/api-keys/test', {
@@ -394,21 +488,27 @@ export default function AdminDashboard() {
                 success(`✅ ${data.message}`);
             } else {
                 error(`❌ Error: ${data.message}`);
-                // Refresh list if key was auto-deactivated
                 if (data.keyDeactivated) {
+                    tabDataLoaded.current.apikeys = false;
                     fetchApiKeys();
                 }
             }
-        } catch (error) {
-            console.error("Test error", error);
-            error("System error during test.");
+        } catch (err) {
+            console.error("Test error", err);
         } finally {
-            if (btnId) {
-                document.getElementById(btnId).innerText = originalText;
-                document.getElementById(btnId).disabled = false;
-            }
+            setTestingKeyId(null);
         }
-    };
+    }, [success, error, fetchApiKeys]);
+
+    const handleTestKey = useCallback(async () => {
+        if (!newKeyValue) return error("Please enter an API Key to test.");
+        await performKeyTest(newKeyValue, true);
+    }, [newKeyValue, error, performKeyTest]);
+
+    const handleTestExistingKey = useCallback(async (key) => {
+        if (!key) return error("Key not available for testing.");
+        await performKeyTest(key);
+    }, [error, performKeyTest]);
 
     const handleActivateKey = async (id) => {
         try {
@@ -420,7 +520,7 @@ export default function AdminDashboard() {
             });
             const data = await response.json();
             if (data.success) {
-                fetchApiKeys(); // Refresh to show active status update
+                fetchApiKeys();
             } else {
                 error(data.message);
             }
@@ -478,135 +578,258 @@ export default function AdminDashboard() {
         );
     }
 
+    const TABS = [
+        { key: 'users', icon: '👥', label: 'Users', count: users.length },
+        { key: 'config', icon: '🤖', label: 'AI Config', count: null },
+        { key: 'apikeys', icon: '🔑', label: 'API Keys', count: apiKeys.length },
+    ];
+
     return (
         <div className="admin-dashboard">
-            <div className="admin-header">
-                <h1>Admin Dashboard</h1>
+            {/* Admin Hero Header */}
+            <div className="admin-hero">
+                <div className="admin-hero-content">
+                    <div className="admin-hero-left">
+                        <h1>🛡️ Admin Dashboard</h1>
+                        <p className="admin-hero-subtitle">Quản lý hệ thống và người dùng</p>
+                    </div>
+                    <div className="admin-hero-right">
+                        <div className="admin-avatar">
+                            <span>{user?.username?.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <div className="admin-user-info">
+                            <span className="admin-user-name">{user?.fullName || user?.username}</span>
+                            <span className="admin-user-role">Administrator</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
+            {/* Stats Overview Cards */}
+            {computedStats && (
+                <div className="admin-stats-grid">
+                    <div className="admin-stat-card" style={{ '--card-accent': '#6366f1' }}>
+                        <div className="admin-stat-icon">👥</div>
+                        <div className="admin-stat-info">
+                            <span className="admin-stat-value">{computedStats.totalUsers}</span>
+                            <span className="admin-stat-label">Total Users</span>
+                        </div>
+                    </div>
+                    <div className="admin-stat-card" style={{ '--card-accent': '#22c55e' }}>
+                        <div className="admin-stat-icon">✅</div>
+                        <div className="admin-stat-info">
+                            <span className="admin-stat-value">{computedStats.verifiedPercent}%</span>
+                            <span className="admin-stat-label">Verified</span>
+                        </div>
+                    </div>
+                    <div className="admin-stat-card" style={{ '--card-accent': '#f59e0b' }}>
+                        <div className="admin-stat-icon">⭐</div>
+                        <div className="admin-stat-info">
+                            <span className="admin-stat-value">{computedStats.totalXP.toLocaleString()}</span>
+                            <span className="admin-stat-label">Total XP</span>
+                        </div>
+                    </div>
+                    <div className="admin-stat-card" style={{ '--card-accent': '#8b5cf6' }}>
+                        <div className="admin-stat-icon">🔑</div>
+                        <div className="admin-stat-info">
+                            <span className="admin-stat-value">{computedStats.activeKeys}/{computedStats.totalKeys}</span>
+                            <span className="admin-stat-label">Active Keys</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Tabs */}
             <div className="admin-tabs">
-                <button
-                    className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('users')}
-                >
-                    Manage Users
-                </button>
-                <button
-                    className={`admin-tab-btn ${activeTab === 'config' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('config')}
-                >
-                    AI Model Config
-                </button>
-                <button
-                    className={`admin-tab-btn ${activeTab === 'apikeys' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('apikeys')}
-                >
-                    API Keys
-                </button>
+                {TABS.map(tab => (
+                    <button
+                        key={tab.key}
+                        className={`admin-tab-btn ${activeTab === tab.key ? 'active' : ''}`}
+                        onClick={() => setActiveTab(tab.key)}
+                    >
+                        <span className="tab-icon">{tab.icon}</span>
+                        <span className="tab-label">{tab.label}</span>
+                        {tab.count !== null && (
+                            <span className="tab-count">{tab.count}</span>
+                        )}
+                    </button>
+                ))}
             </div>
 
             <div className="admin-content-card">
+                {/* ==================== USERS TAB ==================== */}
                 {activeTab === 'users' ? (
                     <div className="users-section">
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
-                            <button className="round-add-btn" onClick={() => setShowAddUserModal(true)} title="Add New User">
-                                +
-                            </button>
+                        {/* Toolbar */}
+                        <div className="users-toolbar">
+                            <div className="toolbar-left">
+                                <div className="search-input-wrap">
+                                    <span className="search-icon">🔍</span>
+                                    <input
+                                        type="text"
+                                        placeholder="Search by name, email..."
+                                        value={userSearch}
+                                        onChange={e => setUserSearch(e.target.value)}
+                                        className="search-input"
+                                    />
+                                    {userSearch && (
+                                        <button className="search-clear" onClick={() => setUserSearch('')}>×</button>
+                                    )}
+                                </div>
+                                <select
+                                    value={userRoleFilter}
+                                    onChange={e => setUserRoleFilter(e.target.value)}
+                                    className="toolbar-select"
+                                >
+                                    <option value="all">All Roles</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="user">User</option>
+                                </select>
+                                <select
+                                    value={userSort}
+                                    onChange={e => setUserSort(e.target.value)}
+                                    className="toolbar-select"
+                                >
+                                    <option value="newest">Newest First</option>
+                                    <option value="oldest">Oldest First</option>
+                                    <option value="name">By Name</option>
+                                    <option value="xp">By XP</option>
+                                </select>
+                            </div>
+                            <div className="toolbar-right">
+                                <span className="user-count-label">
+                                    {filteredUsers.length} / {users.length} users
+                                </span>
+                                <button className="round-add-btn" onClick={() => setShowAddUserModal(true)} title="Add New User">
+                                    +
+                                </button>
+                            </div>
                         </div>
+
                         <div className="data-table-container">
                             <table className="data-table">
                                 <thead>
                                     <tr>
-                                        <th>User</th>
-                                        <th>Email</th>
+                                        <th>User Info</th>
                                         <th>Role</th>
                                         <th>Level</th>
+                                        <th>XP</th>
+                                        <th style={{ textAlign: 'center' }}>Verified</th>
                                         <th>Joined</th>
+                                        <th style={{ textAlign: 'right' }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {loading ? (
-                                        <tr><td colSpan="5" style={{ textAlign: 'center' }}>Loading...</td></tr>
-                                    ) : users.map(u => (
+                                        <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>Loading...</td></tr>
+                                    ) : filteredUsers.length === 0 ? (
+                                        <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                                            {userSearch ? 'No users match your search' : 'No users found'}
+                                        </td></tr>
+                                    ) : filteredUsers.map(u => (
                                         <tr key={u._id}>
                                             <td>
-                                                <div style={{ fontWeight: '600' }}>{u.username}</div>
-                                                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{u.fullName || 'No Name'}</div>
-                                            </td>
-                                            <td>{u.email}</td>
-                                            <td>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <button
-                                                        className="action-btn"
-                                                        onClick={() => handleEditClick(u)}
-                                                        style={{ background: '#fef3c7', color: '#d97706', borderColor: '#fde68a' }}
-                                                        title="Edit User"
-                                                    >
-                                                        ✏️
-                                                    </button>
-                                                    <span className={`badge ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}`}>
-                                                        {u.role}
-                                                    </span>
+                                                <div className="user-info-cell">
+                                                    <div className="user-avatar" style={{ background: `hsl(${(u.username.length * 50) % 360}, 70%, 60%)` }}>
+                                                        {u.username.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div className="user-details">
+                                                        <span className="user-name">{u.fullName || u.username}</span>
+                                                        <span className="user-email">{u.email}</span>
+                                                    </div>
                                                 </div>
                                             </td>
-                                            <td>{u.currentLevel}</td>
-                                            <td>{new Date(u.createdAt).toLocaleDateString()}</td>
+                                            <td>
+                                                <span className={`badge ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}`}>
+                                                    {u.role === 'admin' ? '🛡️ Admin' : '👤 User'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className={`level-badge-pill ${u.currentLevel || 'beginner'}`}>
+                                                    {u.currentLevel || 'Beginner'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span style={{ fontWeight: '600', color: '#6366f1' }}>{u.xp?.toLocaleString() || 0} XP</span>
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                {u.isEmailVerified ? (
+                                                    <span style={{ color: '#22c55e', fontSize: '1.2rem', fontWeight: 'bold' }} title="Verified">✓</span>
+                                                ) : (
+                                                    <span style={{ color: '#e2e8f0', fontSize: '1.5rem', lineHeight: '1' }} title="Not Verified">•</span>
+                                                )}
+                                            </td>
+                                            <td style={{ color: '#64748b', fontSize: '0.9rem' }}>
+                                                {new Date(u.createdAt).toLocaleDateString()}
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <div className="action-btns-group">
+                                                    <button className="btn-icon-edit" onClick={() => handleEditClick(u)} title="Edit User">✏️</button>
+                                                    {u.role !== 'admin' && (
+                                                        <button className="btn-icon-delete" onClick={() => handleDeleteUser(u._id, u.username)} title="Delete User">🗑️</button>
+                                                    )}
+                                                </div>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
                     </div>
+
                 ) : activeTab === 'config' ? (
+                    /* ==================== CONFIG TAB ==================== */
                     <div className="config-section">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <div className="config-header">
                             <div>
-                                <h3>Quản lý cấu hình model AI</h3>
+                                <h3>🤖 Quản lý cấu hình model AI</h3>
+                                <p className="config-subtitle">Cấu hình model AI cho từng tính năng trong ứng dụng</p>
                             </div>
-                            {JSON.stringify(config) !== JSON.stringify(originalConfig) && (
-                                <button className="add-key-btn" onClick={handleSaveConfig}>
-                                    Save
+                            {hasConfigChanges && (
+                                <button className="save-config-btn" onClick={handleSaveConfig}>
+                                    💾 Save Changes
                                 </button>
                             )}
                         </div>
 
                         <div className="config-grid">
                             {[
-                                { key: 'chatbot_model', label: '💬 Chatbot Tự Do', desc: 'Trò chuyện tự do (General Chat).' },
-
-                                { key: 'translation_model', label: '🔤 Dịch Câu (Helper)', desc: 'Hỗ trợ dịch câu Việt-Anh trong Chatbot.' },
-                                { key: 'translation_eval_model', label: '📝 Chấm Điểm Dịch', desc: 'Đánh giá bài tập dịch câu (Translation Practice).' },
-
-                                { key: 'roleplay_chat_model', label: '🎭 Roleplay (Chat)', desc: 'Phản hồi hội thoại đóng vai (Nhanh).' },
-                                { key: 'roleplay_report_model', label: '📊 Roleplay (Report)', desc: 'Tạo báo cáo nhận xét sau khi kết thúc (Thông minh).' },
-
-                                { key: 'upgrade_model', label: '✍️ Nâng Cấp Câu', desc: 'Viết lại câu chuẩn C1/C2.' },
-                                { key: 'vocabulary_model', label: '📚 Gợi Ý Từ Vựng', desc: 'Hỗ trợ gợi ý từ vựng và cấu trúc (Hints).' },
-
-                                { key: 'grammar_model', label: '📝 Tạo Bài Tập Ngữ Pháp', desc: 'Sinh câu hỏi MCQ, điền từ, tìm lỗi.' },
-
-                                { key: 'pronunciation_eval_model', label: '🗣️ Chấm Điểm Phát Âm', desc: 'Phân tích Text-to-Speech (Cần chính xác).' },
-                                { key: 'pronunciation_gen_model', label: '🔄 Tạo Câu Luyện Nói', desc: 'Sinh câu mẫu để luyện phát âm.' }
-                            ].map(item => (
-                                <div key={item.key} className="config-card">
-                                    <div className="config-info">
-                                        <h4>{item.label}</h4>
-                                        <p>{item.desc}</p>
+                                { key: 'chatbot_model', label: '💬 Chatbot Tự Do', desc: 'Trò chuyện tự do (General Chat).', group: 'chat' },
+                                { key: 'translation_model', label: '🔤 Dịch Câu (Helper)', desc: 'Hỗ trợ dịch câu Việt-Anh trong Chatbot.', group: 'chat' },
+                                { key: 'translation_eval_model', label: '📝 Chấm Điểm Dịch', desc: 'Đánh giá bài tập dịch câu (Translation Practice).', group: 'eval' },
+                                { key: 'roleplay_chat_model', label: '🎭 Roleplay (Chat)', desc: 'Phản hồi hội thoại đóng vai (Nhanh).', group: 'roleplay' },
+                                { key: 'roleplay_report_model', label: '📊 Roleplay (Report)', desc: 'Tạo báo cáo nhận xét sau khi kết thúc (Thông minh).', group: 'roleplay' },
+                                { key: 'upgrade_model', label: '✍️ Nâng Cấp Câu', desc: 'Viết lại câu chuẩn C1/C2.', group: 'writing' },
+                                { key: 'vocabulary_model', label: '📚 Gợi Ý Từ Vựng', desc: 'Hỗ trợ gợi ý từ vựng và cấu trúc (Hints).', group: 'vocab' },
+                                { key: 'grammar_model', label: '📝 Tạo Bài Tập Ngữ Pháp', desc: 'Sinh câu hỏi MCQ, điền từ, tìm lỗi.', group: 'grammar' },
+                                { key: 'pronunciation_eval_model', label: '🗣️ Chấm Điểm Phát Âm', desc: 'Phân tích Text-to-Speech (Cần chính xác).', group: 'pron' },
+                                { key: 'pronunciation_gen_model', label: '🔄 Tạo Câu Luyện Nói', desc: 'Sinh câu mẫu để luyện phát âm.', group: 'pron' }
+                            ].map(item => {
+                                const isChanged = config[item.key] !== originalConfig[item.key];
+                                return (
+                                    <div key={item.key} className={`config-card ${isChanged ? 'config-changed' : ''}`}>
+                                        <div className="config-info">
+                                            <h4>{item.label}</h4>
+                                            <p>{item.desc}</p>
+                                        </div>
+                                        <select
+                                            value={config[item.key] || ''}
+                                            onChange={(e) => handleConfigChange(item.key, e.target.value)}
+                                            className="model-select"
+                                        >
+                                            {availableModels.map(m => (
+                                                <option key={m.value} value={m.value}>{m.label}</option>
+                                            ))}
+                                        </select>
+                                        {isChanged && <div className="config-changed-dot" />}
                                     </div>
-                                    <select
-                                        value={config[item.key] || ''}
-                                        onChange={(e) => handleConfigChange(item.key, e.target.value)}
-                                        className="model-select"
-                                    >
-                                        {availableModels.map(m => (
-                                            <option key={m.value} value={m.value}>{m.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
+
                 ) : (
+                    /* ==================== API KEYS TAB ==================== */
                     <div className="apikeys-section">
                         <form className="add-key-form" onSubmit={handleAddKey}>
                             <input
@@ -624,8 +847,8 @@ export default function AdminDashboard() {
                             />
 
                             <div style={{ display: 'flex', gap: '10px' }}>
-                                <button type="button" id="test-btn" className="test-btn-fancy" onClick={handleTestKey}>
-                                    ⚡ Test Connection
+                                <button type="button" className="test-btn-fancy" onClick={handleTestKey} disabled={testingKeyId === '__new__'}>
+                                    {testingKeyId === '__new__' ? '⏳ Testing...' : '⚡ Test Connection'}
                                 </button>
                                 <button type="submit" className="add-key-btn">
                                     ➕ Add Key
@@ -633,40 +856,19 @@ export default function AdminDashboard() {
                             </div>
                         </form>
 
-                        <div className="bulk-actions-bar" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button
-                                    className="test-all-btn"
-                                    onClick={handleTestAllKeys}
-                                    style={{
-                                        background: '#2563eb', color: 'white', border: 'none',
-                                        padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'
-                                    }}
-                                >
+                        <div className="bulk-actions-bar">
+                            <div className="bulk-left">
+                                <button className="action-btn-styled test-all" onClick={handleTestAllKeys}>
                                     🧪 Test ALL Keys
                                 </button>
                             </div>
 
                             {selectedKeys.size > 0 && (
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    <button
-                                        className="activate-batch-btn"
-                                        onClick={handleBatchActivate}
-                                        style={{
-                                            background: '#16a34a', color: 'white', border: 'none',
-                                            padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'
-                                        }}
-                                    >
+                                <div className="bulk-right">
+                                    <button className="action-btn-styled activate" onClick={handleBatchActivate}>
                                         ✅ Activate Selected ({selectedKeys.size})
                                     </button>
-                                    <button
-                                        className="delete-batch-btn"
-                                        onClick={handleBatchDelete}
-                                        style={{
-                                            background: '#dc2626', color: 'white', border: 'none',
-                                            padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'
-                                        }}
-                                    >
+                                    <button className="action-btn-styled danger" onClick={handleBatchDelete}>
                                         🗑️ Delete Selected ({selectedKeys.size})
                                     </button>
                                 </div>
@@ -695,7 +897,6 @@ export default function AdminDashboard() {
                                     {loading && apiKeys.length === 0 ? (
                                         <tr><td colSpan="6" style={{ textAlign: 'center' }}>Loading...</td></tr>
                                     ) : apiKeys.map(k => {
-                                        // Match stats
                                         const stat = keyStats.stats[k.fullKey] || { uses: 0, failures: 0, lastUsed: 0 };
                                         const cooldown = keyStats.cooldowns[k.fullKey] || 0;
                                         const isCooldown = Date.now() < cooldown;
@@ -715,7 +916,7 @@ export default function AdminDashboard() {
                                                     {k.keyMasked}
                                                     <button
                                                         onClick={() => copyToClipboard(k.fullKey)}
-                                                        style={{ marginLeft: '10px', cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.2em' }}
+                                                        className="copy-btn"
                                                         title="Copy full key"
                                                     >
                                                         📋
@@ -762,36 +963,26 @@ export default function AdminDashboard() {
                                                     )}
                                                 </td>
                                                 <td>
-                                                    <button
-                                                        className={`action-btn ${k.isActive ? 'btn-deactivate' : 'btn-activate'}`}
-                                                        onClick={() => handleActivateKey(k._id)}
-                                                        style={{
-                                                            background: k.isActive ? '#fee2e2' : '#f0fdf4',
-                                                            color: k.isActive ? '#ef4444' : '#15803d',
-                                                            borderColor: k.isActive ? '#fecaca' : '#bbf7d0',
-                                                            marginRight: '8px'
-                                                        }}
-                                                    >
-                                                        {k.isActive ? 'Deactivate' : 'Activate'}
-                                                    </button>
-                                                    <button
-                                                        className="action-btn btn-test-key"
-                                                        onClick={() => handleTestExistingKey(k.fullKey)}
-                                                        style={{
-                                                            background: '#e0f2fe',
-                                                            color: '#0284c7',
-                                                            borderColor: '#7dd3fc',
-                                                            marginRight: '8px'
-                                                        }}
-                                                    >
-                                                        ⚡ Test
-                                                    </button>
-                                                    <button
-                                                        className="action-btn btn-delete"
-                                                        onClick={() => handleDeleteKey(k._id)}
-                                                    >
-                                                        Remove
-                                                    </button>
+                                                    <div className="action-btns-group">
+                                                        <button
+                                                            className={`action-btn ${k.isActive ? 'btn-deactivate' : 'btn-activate'}`}
+                                                            onClick={() => handleActivateKey(k._id)}
+                                                        >
+                                                            {k.isActive ? 'Deactivate' : 'Activate'}
+                                                        </button>
+                                                        <button
+                                                            className="action-btn btn-test-key"
+                                                            onClick={() => handleTestExistingKey(k.fullKey)}
+                                                        >
+                                                            ⚡ Test
+                                                        </button>
+                                                        <button
+                                                            className="action-btn btn-delete"
+                                                            onClick={() => handleDeleteKey(k._id)}
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         )
@@ -802,8 +993,6 @@ export default function AdminDashboard() {
                     </div>
                 )}
             </div>
-
-
 
             {/* Add User Modal */}
             <Modal
@@ -876,72 +1065,126 @@ export default function AdminDashboard() {
 
             {/* Edit User Modal */}
             <Modal
+                maxWidth="800px"
                 isOpen={!!editUser}
                 onClose={() => setEditUser(null)}
-                title="✏️ Edit User"
+                title="✏️ Update User Profile"
                 footer={(
-                    <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                         <button type="button" className="cancel-btn" onClick={() => setEditUser(null)}>Cancel</button>
                         <button
                             type="submit"
                             form="editUserForm"
                             className="start-btn"
-                            style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
                             disabled={loading}
                         >
-                            {loading ? 'Saving...' : 'Save Changes'}
+                            {loading ? 'Saving...' : '💾 Save Changes'}
                         </button>
-                    </>
+                    </div>
                 )}
             >
                 {editUser && (
-                    <form id="editUserForm" onSubmit={handleUpdateUser}>
-                        <div className="form-group">
-                            <label>Username</label>
-                            <input
-                                type="text"
-                                value={editUser.username}
-                                onChange={(e) => setEditUser({ ...editUser, username: e.target.value })}
-                                required
-                                minLength={3}
-                            />
+                    <form id="editUserForm" onSubmit={handleUpdateUser} className="edit-user-form-grid">
+                        <div className="form-section">
+                            <h5 className="section-title">👤 Personal Info</h5>
+                            <div className="form-group">
+                                <label>Username</label>
+                                <input
+                                    type="text"
+                                    value={editUser.username}
+                                    onChange={(e) => setEditUser({ ...editUser, username: e.target.value })}
+                                    required
+                                    minLength={3}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Full Name</label>
+                                <input
+                                    type="text"
+                                    value={editUser.fullName}
+                                    onChange={(e) => setEditUser({ ...editUser, fullName: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Email</label>
+                                <input
+                                    type="email"
+                                    value={editUser.email}
+                                    onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
+                                    required
+                                />
+                            </div>
                         </div>
-                        <div className="form-group">
-                            <label>Full Name</label>
-                            <input
-                                type="text"
-                                value={editUser.fullName}
-                                onChange={(e) => setEditUser({ ...editUser, fullName: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Email</label>
-                            <input
-                                type="email"
-                                value={editUser.email}
-                                onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
-                                required
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>New Password (Optional)</label>
-                            <input
-                                type="password"
-                                value={editUser.password}
-                                onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
-                                minLength={6}
-                                placeholder="Leave blank to keep current"
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Role</label>
-                            <select
-                                value={editUser.role}
-                                onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
-                            >
-                                <option value="user">User</option>
-                                <option value="admin">Admin</option>
-                            </select>
+
+                        <div className="form-section">
+                            <h5 className="section-title">⚙️ Stats & Settings</h5>
+
+                            <div className="form-row-2">
+                                <div className="form-group">
+                                    <label>Role</label>
+                                    <select
+                                        value={editUser.role}
+                                        onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
+                                    >
+                                        <option value="user">User</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label>Level</label>
+                                    <select
+                                        value={editUser.currentLevel || 'beginner'}
+                                        onChange={(e) => setEditUser({ ...editUser, currentLevel: e.target.value })}
+                                    >
+                                        {['beginner', 'elementary', 'intermediate', 'upper-intermediate', 'advanced', 'expert', 'master', 'legend'].map(lvl => (
+                                            <option key={lvl} value={lvl}>{lvl}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="form-row-2">
+                                <div className="form-group">
+                                    <label>XP</label>
+                                    <input
+                                        type="number"
+                                        value={editUser.xp || 0}
+                                        onChange={(e) => setEditUser({ ...editUser, xp: e.target.value })}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>Streak (Days)</label>
+                                    <input
+                                        type="number"
+                                        value={editUser.streak || 0}
+                                        onChange={(e) => setEditUser({ ...editUser, streak: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group checkbox-group">
+                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '10px' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={editUser.isEmailVerified || false}
+                                        onChange={(e) => setEditUser({ ...editUser, isEmailVerified: e.target.checked })}
+                                        style={{ width: '20px', height: '20px' }}
+                                    />
+                                    <span>Verified Email Address</span>
+                                </label>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Change Password (Optional)</label>
+                                <input
+                                    type="password"
+                                    value={editUser.password || ''}
+                                    onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
+                                    minLength={6}
+                                    placeholder="Enter to change password"
+                                    style={{ borderColor: editUser.password ? '#f59e0b' : '#e2e8f0' }}
+                                />
+                            </div>
                         </div>
                     </form>
                 )}

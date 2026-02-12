@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import './Vocabulary.css';
@@ -33,7 +33,7 @@ export function Vocabulary() {
   const [loading, setLoading] = useState(false);
   const [isLearning, setIsLearning] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
-  const [selectedAccent, setSelectedAccent] = useState('UK');
+  const [selectedAccent] = useState('UK');
 
   // UI State
   const [viewMode, setViewMode] = useState('grid');

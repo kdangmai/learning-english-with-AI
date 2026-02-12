@@ -5,6 +5,7 @@ import ConfirmModal from '../components/common/ConfirmModal';
 import { useToast } from '../context/ToastContext';
 import './AdminDashboard.css';
 
+// Level colors for user badges
 const LEVEL_COLORS = {
     beginner: '#94a3b8', elementary: '#22c55e', intermediate: '#3b82f6',
     'upper-intermediate': '#8b5cf6', advanced: '#f59e0b', expert: '#ef4444',
@@ -13,7 +14,7 @@ const LEVEL_COLORS = {
 
 export default function AdminDashboard() {
     const { user } = useUserStore();
-    const { success, error, info } = useToast();
+    const { success, error } = useToast();
     const [activeTab, setActiveTab] = useState('users');
     const [loading, setLoading] = useState(false);
 
@@ -22,8 +23,6 @@ export default function AdminDashboard() {
     const [apiKeys, setApiKeys] = useState([]);
     const [selectedKeys, setSelectedKeys] = useState(new Set());
 
-    // System Stats
-    const [systemStats, setSystemStats] = useState(null);
 
     // Add User State
     const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -141,6 +140,7 @@ export default function AdminDashboard() {
         return () => {
             if (interval) clearInterval(interval);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
     const fetchUsers = useCallback(async () => {
@@ -745,7 +745,7 @@ export default function AdminDashboard() {
                                                 </span>
                                             </td>
                                             <td>
-                                                <span className={`level-badge-pill ${u.currentLevel || 'beginner'}`}>
+                                                <span className={`level-badge-pill ${u.currentLevel || 'beginner'}`} style={{ color: LEVEL_COLORS[u.currentLevel || 'beginner'] }}>
                                                     {u.currentLevel || 'Beginner'}
                                                 </span>
                                             </td>

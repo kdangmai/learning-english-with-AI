@@ -54,29 +54,6 @@ export const useUserStore = create((set) => ({
     }
   },
 
-  fetchUser: async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      const response = await fetch('/api/users/profile', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          set({ user: data.user, isAuthenticated: true });
-        }
-      } else {
-        localStorage.removeItem('token');
-        set({ token: null, isAuthenticated: false, user: null });
-      }
-    } catch (error) {
-      console.error('Fetch user error:', error);
-    }
-  },
-
   clearError: () => set({ error: null })
 }));
 

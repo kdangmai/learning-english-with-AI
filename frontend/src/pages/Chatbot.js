@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './Chatbot.css';
-import { useToast } from '../context/ToastContext';
 import ConfirmModal from '../components/common/ConfirmModal';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
 import { chatbotAPI } from '../services/api';
@@ -21,7 +20,6 @@ export function Chatbot() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const { warning: showWarning } = useToast();
   const [confirmDelete, setConfirmDelete] = useState(null); // sessionId
   const messagesEndRef = useRef(null);
 
@@ -183,12 +181,6 @@ export function Chatbot() {
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
 
   return (
     <>

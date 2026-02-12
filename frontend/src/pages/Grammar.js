@@ -3,11 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import './Grammar.css';
 import { useToast } from '../context/ToastContext';
 
-const TENSE_LIST = [
-  'Simple Present', 'Present Continuous', 'Present Perfect', 'Present Perfect Continuous',
-  'Simple Past', 'Past Continuous', 'Past Perfect', 'Past Perfect Continuous',
-  'Simple Future', 'Future Continuous', 'Future Perfect', 'Future Perfect Continuous'
-];
+
 
 const TENSE_GROUPS = [
   { label: 'Present', icon: '🟢', color: '#22c55e', tenses: ['Simple Present', 'Present Continuous', 'Present Perfect', 'Present Perfect Continuous'] },
@@ -76,6 +72,7 @@ export function Grammar() {
       fetchTenseDetails(selectedTense);
       resetExercise();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTense]);
 
   // Sync reorder words
@@ -119,6 +116,7 @@ export function Grammar() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseStarted, exercises, currentQuestionIndex, feedback, selectedAnswer]);
 
   const resetExercise = useCallback(() => {
@@ -197,10 +195,6 @@ export function Grammar() {
     setSelectedAnswer(val);
   }, [feedback]);
 
-  const handleReorderClick = useCallback((word) => {
-    if (feedback?.isCorrect) return;
-    setSelectedAnswer(prev => prev ? prev + ' ' + word : word);
-  }, [feedback]);
 
   const checkAnswer = useCallback(() => {
     if (!selectedAnswer) return;

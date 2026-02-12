@@ -19,7 +19,7 @@ export default function Roleplay() {
     const [customInput, setCustomInput] = useState({ title: '', role: '', desc: '' });
     const messagesEndRef = useRef(null);
     // Removed recognitionRef as it's handled in hook
-    const { error: showError, warning: showWarning } = useToast();
+    const { error: showError } = useToast();
     const [showEndConfirm, setShowEndConfirm] = useState(false);
 
     // Use custom speech hook

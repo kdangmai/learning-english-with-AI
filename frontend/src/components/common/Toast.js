@@ -25,7 +25,7 @@ export default function Toast({ message, type = 'info', onClose, duration = 3000
         setIsVisible(false);
         setTimeout(() => {
             if (onClose) onClose();
-        }, 300); // wait for animation
+        }, 300);
     };
 
     if (!message) return null;
@@ -37,17 +37,29 @@ export default function Toast({ message, type = 'info', onClose, duration = 3000
         info: 'ℹ️'
     };
 
+    const titles = {
+        success: 'Thành công',
+        error: 'Lỗi',
+        warning: 'Cảnh báo',
+        info: 'Thông tin'
+    };
+
     return (
         <div className={`toast-notification ${type} ${isVisible ? 'show' : 'hide'}`}>
-            <span className="toast-icon">{icons[type] || 'ℹ️'}</span>
-            <span className="toast-message">{message}</span>
+            <div className="toast-icon-wrapper">
+                <span className="toast-icon">{icons[type] || 'ℹ️'}</span>
+            </div>
+            <div className="toast-content">
+                <span className="toast-title">{titles[type] || 'Thông báo'}</span>
+                <span className="toast-message">{message}</span>
+            </div>
             <button className="toast-close" onClick={handleClose}>&times;</button>
         </div>
     );
 }
 
 /**
- * Toast Container to stack multiple toasts (Simple version)
+ * Toast Container to stack multiple toasts
  */
 export const ToastContainer = ({ toasts, removeToast }) => {
     return (

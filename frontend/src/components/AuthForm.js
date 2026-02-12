@@ -8,13 +8,12 @@ export function LoginForm() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (error) setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -25,19 +24,17 @@ export function LoginForm() {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 
       if (!response.ok) {
-        throw new Error('Login failed');
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại.');
       }
 
       const data = await response.json();
       localStorage.setItem('token', data.token);
-      // Redirect to dashboard
       window.location.href = '/dashboard';
     } catch (err) {
       setError(err.message);
@@ -47,45 +44,103 @@ export function LoginForm() {
   };
 
   return (
-    <form className="auth-form" onSubmit={handleSubmit}>
-      <h2>Đăng Nhập</h2>
-      
-      {error && <div className="error-message">{error}</div>}
+    <div className="auth-wrapper">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <span className="logo-icon">🎓</span>
+          <span className="logo-text">LearnEnglish AI</span>
+        </div>
+        <h2 className="auth-title">Chào mừng trở lại!</h2>
+        <p className="auth-subtitle">Đăng nhập để tiếp tục hành trình học tiếng Anh</p>
 
-      <div className="form-group">
-        <label htmlFor="emailOrUsername">Email hoặc Tên Đăng Nhập</label>
-        <input
-          type="text"
-          id="emailOrUsername"
-          name="emailOrUsername"
-          value={formData.emailOrUsername}
-          onChange={handleChange}
-          required
-          placeholder="your@email.com hoặc username"
-        />
+        {error && (
+          <div className="auth-message error">
+            <span className="msg-icon">⚠️</span>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="input-group">
+            <label htmlFor="emailOrUsername">Email hoặc Tên đăng nhập</label>
+            <div className="input-wrapper">
+              <span className="input-icon">👤</span>
+              <input
+                type="text"
+                id="emailOrUsername"
+                name="emailOrUsername"
+                value={formData.emailOrUsername}
+                onChange={handleChange}
+                required
+                placeholder="your@email.com hoặc username"
+                autoComplete="username"
+              />
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label htmlFor="password">Mật khẩu</label>
+            <div className="input-wrapper">
+              <span className="input-icon">🔒</span>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+              <button type="button" className="toggle-pw" onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" disabled={loading} className="auth-submit-btn">
+            {loading ? (
+              <>
+                <span className="auth-spinner"></span>
+                Đang xử lý...
+              </>
+            ) : 'Đăng Nhập →'}
+          </button>
+        </form>
+
+        <div className="auth-divider">
+          <span>hoặc</span>
+        </div>
+
+        <p className="auth-link">
+          Chưa có tài khoản? <a href="/register">Đăng ký miễn phí</a>
+        </p>
       </div>
 
-      <div className="form-group">
-        <label htmlFor="password">Mật Khẩu</label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          required
-          placeholder="••••••••"
-        />
+      <div className="auth-features">
+        <div className="feature-item">
+          <span>📚</span>
+          <div>
+            <strong>Học từ vựng thông minh</strong>
+            <p>SRS giúp bạn nhớ từ hiệu quả</p>
+          </div>
+        </div>
+        <div className="feature-item">
+          <span>🤖</span>
+          <div>
+            <strong>AI Chatbot</strong>
+            <p>Thực hành hội thoại với AI</p>
+          </div>
+        </div>
+        <div className="feature-item">
+          <span>📝</span>
+          <div>
+            <strong>Ngữ pháp & Viết câu</strong>
+            <p>Luyện tập với phản hồi chi tiết</p>
+          </div>
+        </div>
       </div>
-
-      <button type="submit" disabled={loading} className="submit-button">
-        {loading ? 'Đang xử lý...' : 'Đăng Nhập'}
-      </button>
-
-      <p className="auth-link">
-        Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>
-      </p>
-    </form>
+    </div>
   );
 }
 
@@ -100,13 +155,12 @@ export function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (error) setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -119,30 +173,28 @@ export function RegisterForm() {
       return;
     }
 
+    if (formData.password.length < 6) {
+      setError('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { confirmPassword, ...registerData } = formData;
       const response = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(registerData)
       });
 
       if (!response.ok) {
-        throw new Error('Registration failed');
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Đăng ký thất bại');
       }
 
       setSuccess('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận tài khoản.');
-      setFormData({
-        username: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-        fullName: ''
-      });
+      setFormData({ username: '', email: '', password: '', confirmPassword: '', fullName: '' });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -150,85 +202,142 @@ export function RegisterForm() {
     }
   };
 
+  const passwordMatch = formData.confirmPassword.length > 0 && formData.password === formData.confirmPassword;
+  const passwordMismatch = formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword;
+
   return (
-    <form className="auth-form" onSubmit={handleSubmit}>
-      <h2>Đăng Ký Tài Khoản</h2>
-      
-      {error && <div className="error-message">{error}</div>}
-      {success && <div className="success-message">{success}</div>}
+    <div className="auth-wrapper">
+      <div className="auth-card register">
+        <div className="auth-logo">
+          <span className="logo-icon">🎓</span>
+          <span className="logo-text">LearnEnglish AI</span>
+        </div>
+        <h2 className="auth-title">Tạo tài khoản mới</h2>
+        <p className="auth-subtitle">Bắt đầu hành trình học tiếng Anh cùng AI</p>
 
-      <div className="form-group">
-        <label htmlFor="fullName">Họ Tên</label>
-        <input
-          type="text"
-          id="fullName"
-          name="fullName"
-          value={formData.fullName}
-          onChange={handleChange}
-          required
-          placeholder="Nguyễn Văn A"
-        />
+        {error && (
+          <div className="auth-message error">
+            <span className="msg-icon">⚠️</span>
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="auth-message success">
+            <span className="msg-icon">✅</span>
+            {success}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-row">
+            <div className="input-group">
+              <label htmlFor="fullName">Họ Tên</label>
+              <div className="input-wrapper">
+                <span className="input-icon">📛</span>
+                <input
+                  type="text"
+                  id="fullName"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  required
+                  placeholder="Nguyễn Văn A"
+                />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="username">Tên đăng nhập</label>
+              <div className="input-wrapper">
+                <span className="input-icon">👤</span>
+                <input
+                  type="text"
+                  id="username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  required
+                  placeholder="username123"
+                  autoComplete="username"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label htmlFor="reg-email">Email</label>
+            <div className="input-wrapper">
+              <span className="input-icon">✉️</span>
+              <input
+                type="email"
+                id="reg-email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                placeholder="your@email.com"
+                autoComplete="email"
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="input-group">
+              <label htmlFor="reg-password">Mật khẩu</label>
+              <div className="input-wrapper">
+                <span className="input-icon">🔒</span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="reg-password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+                <button type="button" className="toggle-pw" onClick={() => setShowPassword(!showPassword)}>
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="confirmPassword">Xác nhận mật khẩu</label>
+              <div className={`input-wrapper ${passwordMatch ? 'match' : ''} ${passwordMismatch ? 'mismatch' : ''}`}>
+                <span className="input-icon">{passwordMatch ? '✅' : passwordMismatch ? '❌' : '🔒'}</span>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" disabled={loading} className="auth-submit-btn">
+            {loading ? (
+              <>
+                <span className="auth-spinner"></span>
+                Đang xử lý...
+              </>
+            ) : 'Tạo Tài Khoản →'}
+          </button>
+        </form>
+
+        <div className="auth-divider">
+          <span>hoặc</span>
+        </div>
+
+        <p className="auth-link">
+          Đã có tài khoản? <a href="/login">Đăng nhập</a>
+        </p>
       </div>
-
-      <div className="form-group">
-        <label htmlFor="username">Tên Đăng Nhập</label>
-        <input
-          type="text"
-          id="username"
-          name="username"
-          value={formData.username}
-          onChange={handleChange}
-          required
-          placeholder="username123"
-        />
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="email">Email</label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          required
-          placeholder="your@email.com"
-        />
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="password">Mật Khẩu</label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          required
-          placeholder="••••••••"
-        />
-      </div>
-
-      <div className="form-group">
-        <label htmlFor="confirmPassword">Xác Nhận Mật Khẩu</label>
-        <input
-          type="password"
-          id="confirmPassword"
-          name="confirmPassword"
-          value={formData.confirmPassword}
-          onChange={handleChange}
-          required
-          placeholder="••••••••"
-        />
-      </div>
-
-      <button type="submit" disabled={loading} className="submit-button">
-        {loading ? 'Đang xử lý...' : 'Đăng Ký'}
-      </button>
-
-      <p className="auth-link">
-        Đã có tài khoản? <a href="/login">Đăng nhập</a>
-      </p>
-    </form>
+    </div>
   );
 }

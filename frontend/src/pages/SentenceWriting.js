@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import './SentenceWriting.css';
 import { useToast } from '../context/ToastContext';
 
-// Pre-defined random topics for inspiration
 const SUGGESTED_TOPICS = [
-  'Travel', 'Technology', 'Daily Life', 'Food',
-  'Environment', 'Education', 'Business', 'Hobbies'
+  { label: 'Travel', icon: '✈️' },
+  { label: 'Technology', icon: '💻' },
+  { label: 'Daily Life', icon: '☀️' },
+  { label: 'Food', icon: '🍜' },
+  { label: 'Environment', icon: '🌿' },
+  { label: 'Education', icon: '📚' },
+  { label: 'Business', icon: '💼' },
+  { label: 'Hobbies', icon: '🎨' },
 ];
 
 const DIFFICULTY_LEVELS = [
@@ -14,28 +19,26 @@ const DIFFICULTY_LEVELS = [
   { value: 'B1', label: 'Intermediate', color: '#6366f1' },
   { value: 'B2', label: 'Upper-Int', color: '#8b5cf6' },
   { value: 'C1', label: 'Advanced', color: '#f59e0b' },
-  { value: 'C2', label: 'Expert', color: '#ef4444' }
+  { value: 'C2', label: 'Expert', color: '#ef4444' },
 ];
 
 export function SentenceWriting() {
   const [level, setLevel] = useState('A1');
   const [grammarLevel, setGrammarLevel] = useState('A1');
   const [topic, setTopic] = useState('');
-
   const [vietnameseSentence, setVietnameseSentence] = useState('');
   const [translationAnswer, setTranslationAnswer] = useState('');
   const [translationFeedback, setTranslationFeedback] = useState(null);
   const [hints, setHints] = useState(null);
-
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-
-  // Confetti/Success effect state could go here
+  const [sessionCount, setSessionCount] = useState(0);
+  const textareaRef = useRef(null);
 
   const { error: showError, warning: showWarning, success: showSuccess } = useToast();
 
   const handleTopicClick = (t) => {
-    setTopic(t);
+    setTopic(prev => prev === t ? '' : t);
   };
 
   const handleGenerateSentence = async () => {
@@ -55,6 +58,8 @@ export function SentenceWriting() {
       const data = await response.json();
       if (data.success) {
         setVietnameseSentence(data.vietnameseSentence);
+        // Focus textarea after generating
+        setTimeout(() => textareaRef.current?.focus(), 300);
       } else {
         showError('Lỗi: ' + data.message);
       }
@@ -109,6 +114,7 @@ export function SentenceWriting() {
       });
       const data = await response.json();
       setTranslationFeedback(data.feedback);
+      setSessionCount(prev => prev + 1);
 
       const score = data.feedback?.score || 0;
       if (score >= 80) {
@@ -124,64 +130,100 @@ export function SentenceWriting() {
     }
   };
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault();
+      handleSubmitTranslation();
+    }
+  };
+
+  const wordCount = translationAnswer.trim() ? translationAnswer.trim().split(/\s+/).length : 0;
+
   return (
     <div className="sentence-page">
+      {/* Header */}
       <div className="sentence-header">
         <div className="header-content">
           <h1>✍️ Luyện Dịch Câu</h1>
           <p>Rèn luyện kỹ năng viết và ngữ pháp thông qua việc dịch câu</p>
         </div>
-        <div className="session-progress-badge">
-          <span>🎯 Daily Goal Progress</span>
+        <div className="session-stats">
+          {sessionCount > 0 && (
+            <div className="session-badge">
+              <span className="session-emoji">🔥</span>
+              <span>{sessionCount} câu</span>
+            </div>
+          )}
+          <div className="session-badge">
+            <span className="session-emoji">🎯</span>
+            <span>{level} · {grammarLevel}</span>
+          </div>
         </div>
       </div>
 
       <div className="sentence-container">
-        {/* Settings Panel */}
+        {/* ====== Settings Panel ====== */}
         <div className="settings-panel">
-          <div className="setting-group">
-            <label>Trình độ từ vựng</label>
-            <div className="level-pills">
-              {DIFFICULTY_LEVELS.map((l) => (
-                <button
-                  key={l.value}
-                  className={`level-pill ${level === l.value ? 'active' : ''}`}
-                  onClick={() => setLevel(l.value)}
-                  style={{ '--level-color': l.color }}
-                >
-                  {l.value}
-                </button>
-              ))}
+          <div className="settings-section">
+            <div className="setting-group">
+              <label>📊 Trình độ từ vựng</label>
+              <div className="level-pills">
+                {DIFFICULTY_LEVELS.map((l) => (
+                  <button
+                    key={l.value}
+                    className={`level-pill ${level === l.value ? 'active' : ''}`}
+                    onClick={() => setLevel(l.value)}
+                    style={{ '--level-color': l.color }}
+                    title={l.label}
+                  >
+                    <span className="pill-value">{l.value}</span>
+                    <span className="pill-label">{l.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="setting-group">
-            <label>Trình độ ngữ pháp</label>
-            <div className="level-pills">
-              {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map((l) => (
-                <button
-                  key={l}
-                  className={`level-pill secondary ${grammarLevel === l ? 'active' : ''}`}
-                  onClick={() => setGrammarLevel(l)}
-                >
-                  {l}
-                </button>
-              ))}
+            <div className="setting-group">
+              <label>📝 Trình độ ngữ pháp</label>
+              <div className="level-pills">
+                {DIFFICULTY_LEVELS.map((l) => (
+                  <button
+                    key={l.value}
+                    className={`level-pill secondary ${grammarLevel === l.value ? 'active' : ''}`}
+                    onClick={() => setGrammarLevel(l.value)}
+                    style={{ '--level-color': l.color }}
+                    title={l.label}
+                  >
+                    <span className="pill-value">{l.value}</span>
+                    <span className="pill-label">{l.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="setting-group">
-            <label>Chủ đề (Tùy chọn)</label>
-            <div className="topic-input-wrapper">
-              <span className="search-icon">🔍</span>
-              <input
-                type="text"
-                placeholder="Ví dụ: Technology, Travel..."
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-              />
+            <div className="setting-group">
+              <label>🏷️ Chủ đề (Tùy chọn)</label>
+              <div className="topic-input-wrapper">
+                <span className="search-icon-sw">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Technology, Travel..."
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                />
+              </div>
+              <div className="topic-chips">
+                {SUGGESTED_TOPICS.map((t) => (
+                  <button
+                    key={t.label}
+                    className={`topic-chip ${topic === t.label ? 'active' : ''}`}
+                    onClick={() => handleTopicClick(t.label)}
+                  >
+                    <span>{t.icon}</span> {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            {/* Topic suggestions removed as per request */}
           </div>
 
           <button
@@ -189,51 +231,60 @@ export function SentenceWriting() {
             onClick={handleGenerateSentence}
             disabled={isGenerating || isLoading}
           >
-            {isGenerating ? <span className="spinner small"></span> : '✨ Tạo câu mới'}
+            {isGenerating ? (
+              <>
+                <span className="spinner-sw"></span>
+                Đang tạo...
+              </>
+            ) : (
+              '✨ Tạo câu mới'
+            )}
           </button>
         </div>
 
-        {/* Workspace */}
+        {/* ====== Workspace Panel ====== */}
         <div className="workspace-panel">
-          {/* Prompt Section */}
-          <div className="prompt-card">
-            <div className="card-label">Câu tiếng Việt</div>
+          {/* Vietnamese Sentence Card */}
+          <div className={`prompt-card ${vietnameseSentence ? 'has-content' : ''}`}>
+            <div className="card-label">🇻🇳 Câu tiếng Việt</div>
             <div className="vietnamese-text">
               {vietnameseSentence ? (
                 vietnameseSentence
               ) : (
-                <span className="placeholder-text">Hãy chọn thiết lập và nhấn "Tạo câu mới" để bắt đầu...</span>
+                <span className="placeholder-text-sw">
+                  Hãy chọn thiết lập và nhấn "Tạo câu mới" để bắt đầu luyện tập...
+                </span>
               )}
             </div>
             {vietnameseSentence && (
               <div className="prompt-actions">
-                <button
-                  className="hint-btn"
-                  onClick={handleGetHints}
-                  disabled={isLoading || !!hints}
-                >
+                <button className="hint-btn" onClick={handleGetHints} disabled={isLoading || !!hints}>
                   💡 {hints ? 'Đã hiện gợi ý' : 'Gợi ý từ vựng'}
+                </button>
+                <button className="regenerate-btn" onClick={handleGenerateSentence} disabled={isGenerating}>
+                  🔄 Câu khác
                 </button>
               </div>
             )}
           </div>
 
-          {/* Hints Section (Collapsible) */}
+          {/* Hints Card */}
           {hints && (
             <div className="hints-card bounce-in">
               <div className="hints-header">
-                <span className="icon">🗝️</span> Gợi ý
+                <span className="hints-icon">🗝️</span>
+                <span>Gợi ý</span>
               </div>
               <div className="hints-content">
                 {hints.vocabularyHints?.length > 0 && (
                   <div className="hint-column">
-                    <strong>Từ vựng key:</strong>
+                    <strong>📖 Từ vựng key:</strong>
                     <ul>{hints.vocabularyHints.map((h, i) => <li key={i}>{h}</li>)}</ul>
                   </div>
                 )}
                 {hints.grammarStructures?.length > 0 && (
                   <div className="hint-column">
-                    <strong>Cấu trúc:</strong>
+                    <strong>🔧 Cấu trúc:</strong>
                     <ul>{hints.grammarStructures.map((h, i) => <li key={i}>{h}</li>)}</ul>
                   </div>
                 )}
@@ -241,29 +292,41 @@ export function SentenceWriting() {
             </div>
           )}
 
-          {/* Input Section */}
-          <div className="input-card">
-            <div className="card-label">Dịch sang tiếng Anh</div>
+          {/* Translation Input Card */}
+          <div className={`input-card ${vietnameseSentence ? '' : 'disabled'}`}>
+            <div className="card-label">🇬🇧 Dịch sang tiếng Anh</div>
             <textarea
+              ref={textareaRef}
               className="translation-input"
               value={translationAnswer}
               onChange={(e) => setTranslationAnswer(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Nhập câu dịch của bạn tại đây..."
               disabled={!vietnameseSentence || isLoading}
             />
             <div className="input-footer">
-              <span className="word-count">{translationAnswer.trim() ? translationAnswer.trim().split(/\s+/).length : 0} từ</span>
+              <div className="footer-left">
+                <span className="word-count">{wordCount} từ</span>
+                <span className="shortcut-hint">Ctrl+Enter để nộp</span>
+              </div>
               <button
                 className="submit-btn"
                 onClick={handleSubmitTranslation}
                 disabled={!translationAnswer.trim() || isLoading}
               >
-                {isLoading ? 'Đang chấm...' : 'Nộp bài 📤'}
+                {isLoading ? (
+                  <>
+                    <span className="spinner-sw"></span>
+                    Đang chấm...
+                  </>
+                ) : (
+                  'Nộp bài 📤'
+                )}
               </button>
             </div>
           </div>
 
-          {/* Feedback Section */}
+          {/* Feedback Card */}
           {translationFeedback && (
             <div className="feedback-card bounce-in">
               <div className="feedback-header">
@@ -282,7 +345,6 @@ export function SentenceWriting() {
               </div>
 
               <div className="feedback-details">
-                {/* Grammar Errors */}
                 {translationFeedback.grammarErrors?.length > 0 ? (
                   <div className="feedback-block error">
                     <h4>🚫 Lỗi ngữ pháp</h4>
@@ -299,7 +361,6 @@ export function SentenceWriting() {
                   </div>
                 )}
 
-                {/* Suggestions */}
                 {translationFeedback.suggestions?.length > 0 && (
                   <div className="feedback-block suggestion">
                     <h4>✨ Gợi ý cải thiện</h4>
@@ -310,14 +371,19 @@ export function SentenceWriting() {
                     </ul>
                   </div>
                 )}
-
-                {/* Model Translation (if available, assuming backend provides it, otherwise implied) */}
-                {/* For now we don't have explicit model translation in the state, but usually the suggestions contain rewrites */}
               </div>
 
               <div className="feedback-actions">
-                <button className="next-btn" onClick={handleGenerateSentence}>
-                  Tiếp tục câu tiếp theo ➡️
+                <button className="try-again-btn" onClick={() => {
+                  setTranslationAnswer('');
+                  setTranslationFeedback(null);
+                  setHints(null);
+                  textareaRef.current?.focus();
+                }}>
+                  Viết lại 🔄
+                </button>
+                <button className="next-sentence-btn" onClick={handleGenerateSentence}>
+                  Câu tiếp theo ➡️
                 </button>
               </div>
             </div>

@@ -20,18 +20,37 @@ const Roleplay = lazy(() => import('./pages/Roleplay'));
 
 // Loading Component
 const PageLoader = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-    <div className="loader">Loading...</div>
+  <div className="page-loader-wrapper">
+    <div className="page-loader-spinner"></div>
+    <span className="page-loader-text">Đang tải...</span>
   </div>
 );
 
+// Navigation items configuration
+const NAV_ITEMS = [
+  { path: '/dashboard', icon: '📊', label: 'Dashboard', section: 'main' },
+  { path: '/grammar', icon: '📚', label: 'Học Ngữ Pháp', section: 'learn' },
+  { path: '/vocabulary', icon: '📖', label: 'Từ Vựng', section: 'learn' },
+  { path: '/sentence-writing', icon: '✍️', label: 'Luyện Dịch Câu', section: 'practice' },
+  { path: '/sentence-upgrade', icon: '⏫', label: 'Nâng Cấp Câu', section: 'practice' },
+  { path: '/pronunciation', icon: '🗣️', label: 'Luyện Phát Âm', section: 'practice' },
+  { path: '/chatbot', icon: '🤖', label: 'Chatbot AI', section: 'ai' },
+  { path: '/roleplay', icon: '🎭', label: 'Đóng Vai AI', section: 'ai' },
+];
+
+const SECTION_LABELS = {
+  main: null, // no label for main
+  learn: 'Học tập',
+  practice: 'Luyện tập',
+  ai: 'Trò chuyện AI',
+};
+
 function MainLayout() {
-  const { isAuthenticated, user } = useUserStore();
+  const { isAuthenticated, user, logout } = useUserStore();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
 
   useEffect(() => {
-    // Auto-collapse sidebar when location changes (navigating to another page)
     setSidebarOpen(false);
   }, [location]);
 
@@ -46,10 +65,18 @@ function MainLayout() {
   }
 
   const isDashboard = location.pathname === '/dashboard';
-
-
-
   const isChatbot = location.pathname === '/chatbot';
+
+  const handleLogout = () => {
+    logout();
+    window.location.href = '/';
+  };
+
+  // Get user initials for avatar
+  const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : '?';
+
+  // Group navigation items by section
+  let lastSection = null;
 
   return (
     <div className="app-container">
@@ -64,43 +91,91 @@ function MainLayout() {
         <button
           className={`sidebar-toggle-floating closed-only ${isChatbot ? 'chatbot-pos' : 'default-pos'}`}
           onClick={() => setSidebarOpen(true)}
-          title="Mở rộng"
+          title="Mở menu"
         >
-          ▶
+          ☰
         </button>
       )}
 
       <div className="main-wrapper">
         <nav className={`navbar sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+          {/* Sidebar Brand */}
           <div className="sidebar-header">
-            <span className="sidebar-title">Menu</span>
+            <div className="sidebar-brand">
+              <span className="brand-icon">🎓</span>
+              <span className="brand-text">LearnAI</span>
+            </div>
           </div>
-          <ul>
-            <li><Link to="/dashboard">📊 Dashboard</Link></li>
-            <li><Link to="/grammar">📚 Học Ngữ Pháp</Link></li>
-            <li><Link to="/vocabulary">📖 Từ Vựng</Link></li>
-            <li><Link to="/sentence-writing">✍️ Luyện Tập Dịch Câu</Link></li>
-            <li><Link to="/sentence-upgrade">⏫ Nâng Cấp Câu</Link></li>
-            <li><Link to="/pronunciation">🗣️ Luyện Phát Âm</Link></li>
-            <li><Link to="/chatbot">🤖 Chatbot AI</Link></li>
-            <li><Link to="/roleplay">🎭 Đóng vai với AI</Link></li>
-            {/* Admin Link */}
-            {user?.role === 'admin' && (
-              <li><div style={{ height: '1px', background: '#e2e8f0', margin: '8px 0' }}></div></li>
-            )}
-            {user?.role === 'admin' && (
-              <li><Link to="/admin" style={{ color: '#ef4444' }}>⚙️ Admin Control</Link></li>
-            )}
 
-            <li><a href="#logout" onClick={() => { localStorage.removeItem('token'); window.location.href = '/'; }}>🚪 Đăng Xuất</a></li>
+          {/* User Profile */}
+          <div className="sidebar-user-section">
+            <div className="sidebar-avatar">{userInitial}</div>
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-name">{user?.name || 'User'}</span>
+              <span className="sidebar-user-role">
+                {user?.role === 'admin' ? '⭐ Admin' : '📝 Học viên'}
+              </span>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <ul className="sidebar-nav">
+            {NAV_ITEMS.map((item) => {
+              const isActive = location.pathname === item.path;
+              const showSectionLabel = item.section !== lastSection && SECTION_LABELS[item.section];
+              lastSection = item.section;
+
+              return (
+                <React.Fragment key={item.path}>
+                  {showSectionLabel && (
+                    <li className="nav-section-label">{showSectionLabel}</li>
+                  )}
+                  <li>
+                    <Link
+                      to={item.path}
+                      className={`nav-link ${isActive ? 'active' : ''}`}
+                    >
+                      <span className="nav-icon">{item.icon}</span>
+                      <span className="nav-label">{item.label}</span>
+                      {isActive && <span className="nav-active-dot"></span>}
+                    </Link>
+                  </li>
+                </React.Fragment>
+              );
+            })}
+
+            {/* Admin Section */}
+            {user?.role === 'admin' && (
+              <>
+                <li className="nav-section-label">Quản trị</li>
+                <li>
+                  <Link
+                    to="/admin"
+                    className={`nav-link admin-link ${location.pathname === '/admin' ? 'active' : ''}`}
+                  >
+                    <span className="nav-icon">⚙️</span>
+                    <span className="nav-label">Admin Control</span>
+                    {location.pathname === '/admin' && <span className="nav-active-dot"></span>}
+                  </Link>
+                </li>
+              </>
+            )}
           </ul>
-          <button
-            className={`sidebar-toggle-btn-inner ${isChatbot ? 'chatbot-pos' : 'default-pos'}`}
-            onClick={() => setSidebarOpen(false)}
-            title="Thu gọn"
-          >
-            ◀
-          </button>
+
+          {/* Sidebar Footer */}
+          <div className="sidebar-footer">
+            <button className="logout-btn" onClick={handleLogout}>
+              <span>🚪</span>
+              <span>Đăng Xuất</span>
+            </button>
+            <button
+              className={`sidebar-collapse-btn ${isChatbot ? 'chatbot-pos' : 'default-pos'}`}
+              onClick={() => setSidebarOpen(false)}
+              title="Thu gọn"
+            >
+              ◀
+            </button>
+          </div>
         </nav>
 
         <main className="main-content">
@@ -141,7 +216,15 @@ function App() {
   }, [setToken, fetchUser]);
 
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return (
+      <div className="app-splash">
+        <div className="splash-content">
+          <span className="splash-icon">🎓</span>
+          <h2>LearnAI English</h2>
+          <div className="splash-loader"></div>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -3,14 +3,6 @@ import './Modal.css';
 
 /**
  * Reusable Confirm Dialog — replaces native window.confirm()
- * @param {boolean} isOpen - Whether the modal is visible
- * @param {function} onClose - Called when user cancels
- * @param {function} onConfirm - Called when user confirms
- * @param {string} title - Dialog title
- * @param {string} message - Confirmation message
- * @param {string} confirmText - Text for confirm button (default "Xác nhận")
- * @param {string} cancelText - Text for cancel button (default "Hủy")
- * @param {string} variant - 'danger' | 'warning' | 'info' (default 'danger')
  */
 export default function ConfirmModal({
     isOpen,
@@ -28,37 +20,87 @@ export default function ConfirmModal({
         if (e.target === e.currentTarget) onClose();
     };
 
-    const variantColors = {
-        danger: '#ef4444',
-        warning: '#f59e0b',
-        info: '#6366f1'
+    const variantConfig = {
+        danger: {
+            color: '#ef4444',
+            bg: 'linear-gradient(135deg, #ef4444, #dc2626)',
+            lightBg: '#fef2f2',
+            icon: '⚠️',
+            headerBg: 'linear-gradient(120deg, #ef4444 0%, #f97316 100%)'
+        },
+        warning: {
+            color: '#f59e0b',
+            bg: 'linear-gradient(135deg, #f59e0b, #d97706)',
+            lightBg: '#fffbeb',
+            icon: '❓',
+            headerBg: 'linear-gradient(120deg, #f59e0b 0%, #eab308 100%)'
+        },
+        info: {
+            color: '#6366f1',
+            bg: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+            lightBg: '#eef2ff',
+            icon: 'ℹ️',
+            headerBg: 'linear-gradient(120deg, #6366f1 0%, #8b5cf6 100%)'
+        }
     };
 
-    const variantIcons = {
-        danger: '⚠️',
-        warning: '❓',
-        info: 'ℹ️'
-    };
+    const config = variantConfig[variant] || variantConfig.danger;
 
     return (
         <div className="modal-overlay" onClick={handleOverlayClick}>
             <div className="modal-container" style={{ maxWidth: '420px' }}>
-                <div className="modal-header">
-                    <h2>{variantIcons[variant]} {title}</h2>
+                <div className="modal-header" style={{ background: config.headerBg }}>
+                    <h2>{config.icon} {title}</h2>
                     <button className="modal-close-btn" onClick={onClose} aria-label="Close">
                         &times;
                     </button>
                 </div>
                 <div className="modal-body">
-                    <p style={{ fontSize: '0.95rem', color: '#475569', lineHeight: 1.6, margin: 0 }}>
-                        {message}
-                    </p>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '14px',
+                        padding: '8px 0'
+                    }}>
+                        <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '10px',
+                            background: config.lightBg,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.2rem',
+                            flexShrink: 0
+                        }}>
+                            {config.icon}
+                        </div>
+                        <p style={{
+                            fontSize: '0.92rem',
+                            color: '#475569',
+                            lineHeight: 1.6,
+                            margin: 0,
+                            flex: 1
+                        }}>
+                            {message}
+                        </p>
+                    </div>
                 </div>
                 <div className="modal-footer">
                     <button
-                        className="cancel-btn"
+                        className="confirm-cancel-btn"
                         onClick={onClose}
-                        style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontWeight: 600 }}
+                        style={{
+                            padding: '10px 22px',
+                            borderRadius: '10px',
+                            border: '1.5px solid #e2e8f0',
+                            background: '#fff',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            fontSize: '0.88rem',
+                            color: '#64748b',
+                            transition: 'all 0.2s'
+                        }}
                     >
                         {cancelText}
                     </button>
@@ -66,13 +108,16 @@ export default function ConfirmModal({
                         className="confirm-action-btn"
                         onClick={() => { onConfirm(); onClose(); }}
                         style={{
-                            padding: '8px 20px',
-                            borderRadius: '8px',
+                            padding: '10px 22px',
+                            borderRadius: '10px',
                             border: 'none',
-                            background: variantColors[variant] || variantColors.danger,
+                            background: config.bg,
                             color: '#fff',
                             cursor: 'pointer',
-                            fontWeight: 600
+                            fontWeight: 600,
+                            fontSize: '0.88rem',
+                            boxShadow: `0 4px 12px ${config.color}40`,
+                            transition: 'all 0.2s'
                         }}
                     >
                         {confirmText}

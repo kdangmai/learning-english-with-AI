@@ -1,0 +1,535 @@
+/* Messenger-like Chatbot Styles */
+.chatbot-page {
+  display: flex;
+  flex-direction: row;
+  /* Horizontal layout for sidebar + chat */
+  height: 100%;
+  background-color: #f0f2f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  /* Prevent body scroll */
+}
+
+/* Sidebar */
+.history-sidebar {
+  width: 280px;
+  background: white;
+  border-right: 1px solid #e5e5e5;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 100;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.02);
+}
+
+/* Responsive Sidebar: Hidden on mobile/tablet default */
+@media (max-width: 768px) {
+  .history-sidebar {
+    position: absolute;
+    height: 100%;
+    transform: translateX(-100%);
+    width: 280px;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .history-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 90;
+  }
+}
+
+/* Desktop: Always open, attached to left */
+@media (min-width: 769px) {
+  .history-sidebar {
+    position: relative;
+    /* It's a flex item in .chatbot-page, so relative/static works fine to take space */
+    width: 350px;
+    /* Increased from 280px to 350px as requested */
+    transform: none;
+    margin-left: 0;
+    border-right: 1px solid #e5e5e5;
+    background: #fff;
+    z-index: 10;
+  }
+
+  /* Hide the toggle button on desktop since sidebar is always open */
+  .menu-btn {
+    display: none;
+  }
+}
+
+.sidebar-header {
+  padding: 15px;
+  padding-top: 30px;
+  /* Avoid overlap with floating navbar toggle */
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Center title */
+  position: relative;
+  /* For absolute button */
+}
+
+.sidebar-header h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  /* Slightly larger */
+  color: #1c1e21;
+}
+
+.new-chat-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background-color: #f0f2f5;
+  color: #050505;
+  border: none;
+  border-radius: 50%;
+  /* Circle */
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  right: 15px;
+  /* Stick to right */
+}
+
+.new-chat-btn:hover {
+  background-color: #e4e6eb;
+}
+
+.session-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+  /* More padding */
+}
+
+.session-list::-webkit-scrollbar {
+  width: 4px;
+  /* Thinner scrollbar */
+}
+
+.session-list::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.session-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.session-item {
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+.session-item:hover {
+  background-color: #f5f6f7;
+}
+
+.session-item.active {
+  background-color: #e7f3ff;
+  /* Match button tone */
+}
+
+.session-info {
+  flex: 1;
+  min-width: 0;
+  margin-right: 8px;
+}
+
+.session-topic {
+  font-weight: 500;
+  color: #050505;
+  font-size: 0.95rem;
+  /* Slightly larger */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-date {
+  font-size: 0.75rem;
+  color: #65676b;
+  margin-top: 2px;
+}
+
+.delete-session-btn {
+  background: none;
+  border: none;
+  color: #65676b;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 6px;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+  border-radius: 50%;
+}
+
+.session-item:hover .delete-session-btn {
+  opacity: 1;
+}
+
+.delete-session-btn:hover {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+.empty-history {
+  padding: 20px;
+  text-align: center;
+  color: #65676b;
+  font-size: 0.9rem;
+}
+
+/* Chatbot Container */
+.chatbot-container {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: white;
+  box-shadow: none;
+  border-radius: 0;
+  /* Remove margins and rounded corners on desktop to feel "attached" */
+}
+
+/* Mobile responsive container adjustments */
+@media (max-width: 768px) {
+
+  /* Keep mobile card style if desired, or make full width too */
+  /* Let's make it full width on mobile for consistency with standard chat apps */
+  .chatbot-container {
+    border-radius: 0;
+    border: none;
+  }
+}
+
+.chatbot-header-bar {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: white;
+  border-bottom: 1px solid #e5e5e5;
+  z-index: 10;
+}
+
+.menu-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  margin-right: 15px;
+  color: #65676b;
+  padding: 4px;
+}
+
+.header-info {
+  margin-left: 10px;
+}
+
+/* Messages Area */
+.messages-container {
+  flex: 1;
+  padding: 20px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  background-color: white;
+}
+
+.message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 80%;
+}
+
+.message-row.user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.message-row.assistant {
+  align-self: flex-start;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e4e6eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.message-group {
+  display: flex;
+  flex-direction: column;
+  /* Stack bubble and actions */
+  gap: 2px;
+  max-width: 100%;
+}
+
+.message-row.user .message-group {
+  align-items: flex-end;
+}
+
+.message-bubble {
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  word-wrap: break-word;
+  max-width: 100%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.message-bubble.assistant {
+  background-color: #f0f2f5;
+  color: #050505;
+  border-bottom-left-radius: 4px;
+}
+
+.message-bubble.user {
+  /* background-color: #0084ff;  Old Blue */
+  background: linear-gradient(to right, #0084ff, #0099ff);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+/* Markdown Styling inside Bubbles */
+.message-bubble p {
+  margin: 0 0 8px 0;
+}
+
+.message-bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.message-bubble strong {
+  font-weight: 600;
+}
+
+.message-bubble ul,
+.message-bubble ol {
+  margin: 4px 0 8px 0;
+  padding-left: 20px;
+}
+
+.message-bubble h1,
+.message-bubble h2 {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin: 8px 0;
+}
+
+.message-bubble code {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+/* Darker text background for user/assistant contrast handled by color? No, use transparency */
+.message-bubble.assistant code {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Translation */
+.translation-bubble {
+  background: #fff8e1;
+  color: #856404;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  border: 1px solid #ffeeba;
+}
+
+.message-actions {
+  opacity: 0;
+  transition: opacity 0.2s;
+  padding: 0 4px;
+}
+
+.message-row:hover .message-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: #65676b;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+}
+
+.action-btn:hover {
+  background-color: #e4e6eb;
+}
+
+/* Input Area */
+.input-area {
+  padding: 16px;
+  background: white;
+  border-top: 1px solid #e5e5e5;
+}
+
+.input-area form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f0f2f5;
+  padding: 6px 16px;
+  border-radius: 24px;
+  border: 1px solid transparent;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.input-area form:focus-within {
+  background: white;
+  border-color: #0084ff;
+  box-shadow: 0 0 0 2px rgba(0, 132, 255, 0.1);
+}
+
+.input-area input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  font-size: 0.95rem;
+  color: #050505;
+}
+
+.input-area input:focus {
+  outline: none;
+}
+
+.send-btn {
+  background: transparent;
+  border: none;
+  color: #0084ff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.send-btn:disabled {
+  color: #bcc0c4;
+}
+
+.send-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+}
+
+/* Typing Indicator */
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.typing-indicator span {
+  width: 6px;
+  height: 6px;
+  background: #65676b;
+  border-radius: 50%;
+  animation: typing 1.4s infinite;
+  opacity: 0.6;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Mic Button */
+.mic-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  padding: 0 10px;
+  cursor: pointer;
+  color: #65676b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  min-width: 40px;
+}
+
+.mic-btn:hover {
+  color: var(--primary);
+  background: #f0f2f5;
+  border-radius: 50%;
+}
+
+.mic-btn.recording {
+  color: #ef4444 !important;
+  /* Red */
+  animation: pulse-record 1.5s infinite;
+}
+
+@keyframes pulse-record {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

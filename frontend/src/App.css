@@ -1,0 +1,295 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  /* Critical for single-screen app feel */
+}
+
+.App {
+  height: 100%;
+  background-color: var(--bg-app);
+  overflow: hidden;
+  color: var(--text-primary);
+}
+
+.app-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* Header */
+.App-header {
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+  padding: 16px 24px;
+  text-align: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  z-index: 50;
+  box-shadow: var(--shadow-sm);
+}
+
+.App-header h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.025em;
+}
+
+.App-header p {
+  display: none;
+  /* Hide subtitle for cleaner look on header */
+}
+
+/* Sidebar Toggle (Floating is below) */
+
+/* Main Layout */
+.main-wrapper {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+  position: relative;
+}
+
+/* Sidebar */
+.navbar.sidebar {
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Changed from auto to hidden */
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 40;
+  height: 100%;
+  position: relative;
+  /* Required for absolute button */
+}
+
+/* ... closed state ... */
+.navbar.sidebar.closed {
+  width: 0;
+  overflow: hidden;
+  border: none;
+}
+
+.navbar.sidebar ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 16px 12px;
+  gap: 4px;
+  flex: 1;
+  /* Take remaining height */
+  overflow-y: auto;
+  /* Enable scrolling for list */
+  padding-bottom: 60px;
+  /* Prevent button overlap */
+}
+
+.navbar.sidebar li {
+  width: 100%;
+}
+
+.navbar.sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.navbar.sidebar a:hover {
+  color: var(--primary);
+  background-color: rgba(99, 102, 241, 0.08);
+  /* Primary tint */
+}
+
+/* Main Content Area */
+.main-content {
+  flex: 1;
+  /* Ensure this container catches overflow but allows children to manage scrolling */
+  overflow: hidden;
+  height: 100%;
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Floating Toggle */
+.sidebar-toggle-floating {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  background: var(--primary) !important;
+  border: none !important;
+  color: white !important;
+  border-radius: 50% !important;
+  transition: all 0.2s ease;
+}
+
+.sidebar-toggle-floating:hover {
+  transform: scale(1.05);
+  background: var(--primary-hover) !important;
+}
+
+/* Common Components */
+button {
+  font-family: inherit;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+
+/* Page Container (Default for simple pages) */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .App-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .navbar.sidebar {
+    position: absolute;
+    height: 100%;
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+/* Sidebar Header (New) */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Center "Menu" */
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  margin-left: 0;
+  /* Remove offset */
+}
+
+/* Sidebar Toggle Inner Button */
+.sidebar-toggle-btn-inner {
+  position: absolute;
+  bottom: 20px;
+  /* Positioning handled by specific classes */
+
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+/* Chatbot Page: Centered in sidebar */
+.sidebar-toggle-btn-inner.chatbot-pos {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Other Pages: Bottom Left corner of sidebar */
+.sidebar-toggle-btn-inner.default-pos {
+  left: 40%;
+  transform: none;
+}
+
+.sidebar-toggle-btn-inner:hover {
+  background: var(--bg-surface);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Adjust validation for floating button when closed */
+.sidebar-toggle-floating.closed-only {
+  position: absolute;
+  top: auto;
+  bottom: 20px;
+  z-index: 100;
+}
+
+/* Chatbot Page: Centered relative to history sidebar (aprx 350px) */
+.sidebar-toggle-floating.closed-only.chatbot-pos {
+  left: 175px;
+  transform: translateX(-50%);
+}
+
+/* Other Pages: Bottom Left Corner */
+.sidebar-toggle-floating.closed-only.default-pos {
+  left: 20px;
+  transform: none;
+}

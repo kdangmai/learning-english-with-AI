@@ -1,0 +1,238 @@
+.pronunciation-page {
+    padding: 30px;
+    height: 100%;
+    overflow-y: auto;
+    background-color: var(--bg-app);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.pronunciation-card {
+    background: white;
+    padding: 40px;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    width: 100%;
+    max-width: 800px;
+    text-align: center;
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 30px;
+}
+
+.controls-row {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+}
+
+.controls-row label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.controls-row select {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    font-size: 1rem;
+    outline: none;
+    cursor: pointer;
+    background-color: #f8fafc;
+    transition: all 0.2s;
+}
+
+.controls-row select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.target-section {
+    background: #f8fafc;
+    padding: 30px;
+    border-radius: 16px;
+    border: 2px dashed #cbd5e1;
+    margin-bottom: 30px;
+    position: relative;
+}
+
+.target-text {
+    font-size: 1.8rem;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+.icon-btn {
+    background: white;
+    border: 1px solid #e2e8f0;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    margin: 0 8px;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-sm);
+}
+
+.icon-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.record-btn {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: white;
+    border: none;
+    padding: 16px 40px;
+    border-radius: 50px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.record-btn:hover:not(:disabled) {
+    transform: scale(1.05);
+}
+
+.record-btn.recording {
+    background: #ef4444;
+    animation: pulse 1.5s infinite;
+}
+
+.record-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.result-section {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f0fdf4;
+    border-radius: 12px;
+    border: 1px solid #bbf7d0;
+}
+
+.spoken-text {
+    font-size: 1.2rem;
+    color: #166534;
+    font-style: italic;
+}
+
+.error-msg {
+    margin-top: 20px;
+    color: #ef4444;
+    background: #fef2f2;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.analysis-result {
+    margin-top: 40px;
+    display: flex;
+    gap: 30px;
+    text-align: left;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 30px;
+}
+
+.score-circle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 8px solid #cbd5e1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.analysis-result.good .score-circle {
+    border-color: #22c55e;
+    color: #22c55e;
+}
+
+.analysis-result.bad .score-circle {
+    border-color: #eab308;
+    /* yellow */
+    color: #eab308;
+}
+
+.score-val {
+    font-size: 2.5rem;
+    font-weight: 800;
+}
+
+.score-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.feedback-content h4 {
+    margin-top: 0;
+    color: var(--text-primary);
+}
+
+.feedback-content p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.mistakes-list {
+    margin-top: 20px;
+    background: #fff1f2;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #fecaca;
+}
+
+.mistakes-list h5 {
+    color: #b91c1c;
+    margin-top: 0;
+}
+
+.mistakes-list ul {
+    padding-left: 20px;
+    margin-bottom: 0;
+}
+
+.mistakes-list li {
+    margin-bottom: 10px;
+    color: #991b1b;
+}
+
+.advice {
+    display: block;
+    margin-top: 4px;
+    color: #7f1d1d;
+    font-size: 0.9rem;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}

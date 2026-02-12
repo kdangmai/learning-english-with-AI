@@ -42,8 +42,24 @@ const userSchema = new mongoose.Schema({
   },
   currentLevel: {
     type: String,
-    enum: ['beginner', 'intermediate', 'advanced', 'expert'],
+    enum: ['beginner', 'elementary', 'intermediate', 'upper-intermediate', 'advanced', 'expert', 'master', 'legend'],
     default: 'beginner'
+  },
+  xp: {
+    type: Number,
+    default: 0
+  },
+  streak: {
+    type: Number,
+    default: 0
+  },
+  lastActiveDate: {
+    type: Date,
+    default: null
+  },
+  claimedMissions: {
+    type: [String],
+    default: []
   },
 
   // Learning preferences

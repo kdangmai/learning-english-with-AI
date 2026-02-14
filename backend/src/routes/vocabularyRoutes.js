@@ -40,6 +40,12 @@ router.post('/generate-flashcards', vocabularyController.generateFlashcards);
 // POST /api/vocabulary/bulk-delete - Bulk delete words (single operation)
 router.post('/bulk-delete', vocabularyController.bulkDeleteWords);
 
+// GET /api/vocabulary/match-game - Get words for match game
+router.get('/match-game', vocabularyController.getMatchGameWords);
+
+// GET /api/vocabulary/intervals/:wordId - Get SRS intervals for a word
+router.get('/intervals/:wordId', vocabularyController.getWordIntervals);
+
 // === WILDCARD ROUTES LAST ===
 
 // PUT /api/vocabulary/:wordId - Update vocabulary word

@@ -495,13 +495,14 @@ exports.getFlashcards = async (req, res) => {
     const parsedLimit = parseInt(limit);
 
     // 1. Fetch Due Reviews First (words that need SRS review)
+    // Include 'mastered' words too — they still need periodic review per SRS schedule
     const dueReviews = await Vocabulary.find({
       userId,
       $or: [
         { 'srs.dueDate': { $lte: now } },
         { 'mastery.nextReviewAt': { $lte: now } }
       ],
-      'mastery.status': { $in: ['learning', 'known'] } // Only words that have started learning
+      'mastery.status': { $in: ['learning', 'known', 'mastered'] }
     }).sort({ 'srs.dueDate': 1 }).limit(parsedLimit);
 
     const dueIds = new Set(dueReviews.map(w => w._id.toString()));
@@ -756,7 +757,7 @@ exports.getSrsStats = async (req, res) => {
           { 'srs.dueDate': { $lte: now } },
           { 'mastery.nextReviewAt': { $lte: now } }
         ],
-        'mastery.status': { $in: ['learning', 'known'] }
+        'mastery.status': { $in: ['learning', 'known', 'mastered'] }
       }),
       Vocabulary.countDocuments({ userId, $or: [{ isNewWord: true }, { 'mastery.status': 'unknown' }] }),
       Vocabulary.countDocuments({ userId, 'mastery.status': 'learning' }),
@@ -777,6 +778,101 @@ exports.getSrsStats = async (req, res) => {
     });
   } catch (error) {
     console.error('SRS stats error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Get SRS intervals for a specific word (for displaying on buttons before review)
+ */
+exports.getWordIntervals = async (req, res) => {
+  try {
+    const { wordId } = req.params;
+    const userId = req.userId;
+
+    const word = await Vocabulary.findOne({ _id: wordId, userId });
+    if (!word) return res.status(404).json({ success: false, message: 'Word not found' });
+
+    const intervals = calculateNextIntervals(word);
+    res.json({ success: true, intervals });
+  } catch (error) {
+    console.error('Get intervals error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Get words for the Word Match game
+ * Prioritizes words that need review, then fills with other words
+ */
+exports.getMatchGameWords = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const count = Math.min(parseInt(req.query.count) || 6, 12); // 6-12 pairs
+    const now = new Date();
+
+    // 1. Prioritize due reviews
+    let words = await Vocabulary.find({
+      userId,
+      'mastery.status': { $in: ['learning', 'known', 'mastered'] },
+      $or: [
+        { 'srs.dueDate': { $lte: now } },
+        { 'mastery.nextReviewAt': { $lte: now } }
+      ]
+    }).limit(count);
+
+    // 2. If not enough, fill with other learned words (random)
+    if (words.length < count) {
+      const existingIds = words.map(w => w._id);
+      const extraWords = await Vocabulary.aggregate([
+        {
+          $match: {
+            userId: new (require('mongoose').Types.ObjectId)(userId),
+            _id: { $nin: existingIds },
+            'meaning.vi': { $exists: true, $ne: '' },
+            'mastery.status': { $in: ['learning', 'known', 'mastered'] }
+          }
+        },
+        { $sample: { size: count - words.length } }
+      ]);
+      words = [...words, ...extraWords];
+    }
+
+    // 3. If still not enough, use any words with Vietnamese meaning
+    if (words.length < 3) {
+      const existingIds = words.map(w => w._id);
+      const anyWords = await Vocabulary.aggregate([
+        {
+          $match: {
+            userId: new (require('mongoose').Types.ObjectId)(userId),
+            _id: { $nin: existingIds },
+            'meaning.vi': { $exists: true, $ne: '' }
+          }
+        },
+        { $sample: { size: count - words.length } }
+      ]);
+      words = [...words, ...anyWords];
+    }
+
+    if (words.length < 3) {
+      return res.json({
+        success: false,
+        message: 'Bạn cần ít nhất 3 từ vựng trong kho để chơi trò chơi nối từ. Hãy học thêm từ mới!'
+      });
+    }
+
+    // Shuffle and return minimal data
+    const shuffled = words.sort(() => Math.random() - 0.5).slice(0, count);
+    const gameWords = shuffled.map(w => ({
+      _id: w._id,
+      word: w.word,
+      meaning: w.meaning?.vi || '',
+      partOfSpeech: w.partOfSpeech || ''
+    }));
+
+    res.json({ success: true, words: gameWords, total: gameWords.length });
+  } catch (error) {
+    console.error('Match game error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

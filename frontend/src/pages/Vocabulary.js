@@ -56,6 +56,26 @@ export function Vocabulary() {
   // Session tracking for completion modal
   const [sessionResults, setSessionResults] = useState({ again: 0, hard: 0, good: 0, easy: 0 });
 
+  // ===== MATCH GAME STATE =====
+  const [matchWords, setMatchWords] = useState([]);
+  const [matchSelected, setMatchSelected] = useState({ en: null, vi: null });
+  const [matchedPairs, setMatchedPairs] = useState(new Set());
+  const [matchWrong, setMatchWrong] = useState({ en: null, vi: null });
+  const [matchGameActive, setMatchGameActive] = useState(false);
+  const [matchScore, setMatchScore] = useState(0);
+  const [matchCombo, setMatchCombo] = useState(0);
+  const [matchTimer, setMatchTimer] = useState(0);
+  const [matchGameComplete, setMatchGameComplete] = useState(false);
+  const [matchPairCount, setMatchPairCount] = useState(6);
+  const [matchAttempts, setMatchAttempts] = useState(0);
+  const [matchStartTime, setMatchStartTime] = useState(null);
+  const [shuffledEn, setShuffledEn] = useState([]);
+  const [shuffledVi, setShuffledVi] = useState([]);
+  const [matchLoadingGame, setMatchLoadingGame] = useState(false);
+  const [floatingScores, setFloatingScores] = useState([]);
+  const [confettiPieces, setConfettiPieces] = useState([]);
+  const [matchSrsReviewed, setMatchSrsReviewed] = useState(0);
+
   // Search
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -157,6 +177,23 @@ export function Vocabulary() {
     window.speechSynthesis.speak(utterance);
   };
 
+  // Fetch SRS intervals for a specific card
+  const fetchCardIntervals = async (cardId) => {
+    try {
+      const res = await fetch(`/api/vocabulary/intervals/${cardId}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFlashcards(prev => prev.map(c =>
+          c._id === cardId ? { ...c, nextIntervals: data.intervals } : c
+        ));
+      }
+    } catch (err) {
+      console.error("Fetch intervals error", err);
+    }
+  };
+
   const startLearning = async () => {
     const topicToUse = customTopic.trim();
     if (!topicToUse) { warning('Vui lòng nhập chủ đề!'); return; }
@@ -184,6 +221,10 @@ export function Vocabulary() {
         setFlipped(false);
         setSessionResults({ again: 0, hard: 0, good: 0, easy: 0 });
         setIsLearning(true);
+        // Fetch intervals for the first card
+        if (data.words?.[0]?._id) {
+          fetchCardIntervals(data.words[0]._id);
+        }
       } else {
         error(data.message);
       }
@@ -209,6 +250,10 @@ export function Vocabulary() {
         setSessionResults({ again: 0, hard: 0, good: 0, easy: 0 });
         setIsLearning(true);
         success(`Bắt đầu ôn tập ${data.flashcards.length} từ!`);
+        // Fetch intervals for the first card
+        if (data.flashcards[0]?._id) {
+          fetchCardIntervals(data.flashcards[0]._id);
+        }
       } else {
         info('Bạn không có từ nào cần ôn tập ngay lúc này.');
       }
@@ -237,24 +282,19 @@ export function Vocabulary() {
         body: JSON.stringify({ wordId: card._id, rating })
       });
 
-      const data = await res.json();
-
-      if (data.nextIntervals && currentCardIndex + 1 < flashcards.length) {
-        setFlashcards(prev => {
-          const updated = [...prev];
-          if (updated[currentCardIndex + 1]) {
-            updated[currentCardIndex + 1] = {
-              ...updated[currentCardIndex + 1],
-              nextIntervals: data.nextIntervals
-            };
-          }
-          return updated;
-        });
-      }
+      await res.json();
 
       if (currentCardIndex < flashcards.length - 1) {
+        const nextIndex = currentCardIndex + 1;
+        const nextCard = flashcards[nextIndex];
         setFlipped(false);
-        setTimeout(() => setCurrentCardIndex(prev => prev + 1), 120);
+        setTimeout(() => {
+          setCurrentCardIndex(nextIndex);
+          // Fetch accurate intervals for next card from backend
+          if (nextCard?._id) {
+            fetchCardIntervals(nextCard._id);
+          }
+        }, 120);
       } else {
         setShowCompletionModal(true);
         fetchSrsStats();
@@ -513,6 +553,163 @@ export function Vocabulary() {
   const intervals = getCurrentCardIntervals();
   const currentCard = flashcards[currentCardIndex];
 
+  // ===== MATCH GAME LOGIC =====
+  // Timer effect for match game
+  useEffect(() => {
+    let interval;
+    if (matchGameActive && !matchGameComplete) {
+      interval = setInterval(() => {
+        setMatchTimer(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [matchGameActive, matchGameComplete]);
+
+  // SRS review for matched words (fire & forget)
+  const reviewMatchedWord = async (wordId) => {
+    try {
+      await fetch('/api/vocabulary/srs-review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ wordId, rating: 'good' })
+      });
+      setMatchSrsReviewed(prev => prev + 1);
+    } catch (err) {
+      // Silent fail — don't interrupt game
+    }
+  };
+
+  // Spawn floating score popup
+  const spawnFloatingScore = (points, combo) => {
+    const id = Date.now() + Math.random();
+    const x = 30 + Math.random() * 40; // random horizontal position %
+    setFloatingScores(prev => [...prev, { id, points, combo, x }]);
+    setTimeout(() => {
+      setFloatingScores(prev => prev.filter(s => s.id !== id));
+    }, 1200);
+  };
+
+  // Spawn confetti on game complete
+  const spawnConfetti = () => {
+    const pieces = Array.from({ length: 40 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      delay: Math.random() * 0.5,
+      duration: 1.5 + Math.random() * 1.5,
+      color: ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#a78bfa'][Math.floor(Math.random() * 6)],
+      size: 6 + Math.random() * 8,
+      rotation: Math.random() * 360
+    }));
+    setConfettiPieces(pieces);
+    setTimeout(() => setConfettiPieces([]), 4000);
+  };
+
+  const startMatchGame = async () => {
+    setMatchLoadingGame(true);
+    try {
+      const res = await fetch(`/api/vocabulary/match-game?count=${matchPairCount}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await res.json();
+      if (data.success && data.words.length >= 3) {
+        const words = data.words;
+        setMatchWords(words);
+        setShuffledEn([...words].sort(() => Math.random() - 0.5));
+        setShuffledVi([...words].sort(() => Math.random() - 0.5));
+        setMatchedPairs(new Set());
+        setMatchSelected({ en: null, vi: null });
+        setMatchWrong({ en: null, vi: null });
+        setMatchScore(0);
+        setMatchCombo(0);
+        setMatchTimer(0);
+        setMatchAttempts(0);
+        setMatchGameComplete(false);
+        setMatchGameActive(true);
+        setMatchStartTime(Date.now());
+        setMatchSrsReviewed(0);
+        setFloatingScores([]);
+        setConfettiPieces([]);
+        success(`🎮 Bắt đầu nối ${words.length} cặp từ!`);
+      } else {
+        warning(data.message || 'Không đủ từ vựng để chơi. Hãy học thêm từ mới!');
+      }
+    } catch (err) {
+      console.error('Match game error:', err);
+      error('Lỗi khi tải trò chơi.');
+    } finally {
+      setMatchLoadingGame(false);
+    }
+  };
+
+  const handleMatchSelect = (type, wordObj) => {
+    if (matchedPairs.has(wordObj._id)) return;
+
+    const newSelection = { ...matchSelected, [type]: wordObj };
+    setMatchSelected(newSelection);
+    setMatchWrong({ en: null, vi: null });
+
+    if (newSelection.en && newSelection.vi) {
+      setMatchAttempts(prev => prev + 1);
+
+      if (newSelection.en._id === newSelection.vi._id) {
+        // ✅ Correct match!
+        const newCombo = matchCombo + 1;
+        const points = 10 * newCombo;
+        setMatchScore(prev => prev + points);
+        setMatchCombo(newCombo);
+
+        // Floating score effect
+        spawnFloatingScore(points, newCombo);
+
+        // SRS Review — count as "good" review
+        reviewMatchedWord(newSelection.en._id);
+
+        const newMatched = new Set(matchedPairs);
+        newMatched.add(newSelection.en._id);
+        setMatchedPairs(newMatched);
+        setMatchSelected({ en: null, vi: null });
+
+        // Check if game complete
+        if (newMatched.size === matchWords.length) {
+          setMatchGameComplete(true);
+          const totalTime = Math.round((Date.now() - matchStartTime) / 1000);
+          setMatchTimer(totalTime);
+          spawnConfetti();
+          fetchSrsStats(); // Refresh SRS stats after game
+        }
+      } else {
+        // ❌ Wrong match
+        setMatchWrong({ en: newSelection.en, vi: newSelection.vi });
+        setMatchCombo(0);
+        setTimeout(() => {
+          setMatchSelected({ en: null, vi: null });
+          setMatchWrong({ en: null, vi: null });
+        }, 600);
+      }
+    }
+  };
+
+  const formatMatchTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const getMatchAccuracy = () => {
+    if (matchAttempts === 0) return 100;
+    return Math.round((matchedPairs.size / matchAttempts) * 100);
+  };
+
+  const getMatchStars = () => {
+    const accuracy = getMatchAccuracy();
+    if (accuracy >= 90) return 3;
+    if (accuracy >= 70) return 2;
+    return 1;
+  };
+
   return (
     <div className="vocabulary-page">
       <div className="main-tabs">
@@ -527,6 +724,12 @@ export function Vocabulary() {
           onClick={() => setActiveTab('library')}
         >
           📚 Kho Từ Vựng
+        </button>
+        <button
+          className={`main-tab-btn ${activeTab === 'match' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('match'); setMatchGameActive(false); setMatchGameComplete(false); }}
+        >
+          🎮 Nối Từ
         </button>
       </div>
 
@@ -986,6 +1189,235 @@ export function Vocabulary() {
                   </span>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* MATCH GAME TAB */}
+        {activeTab === 'match' && !matchGameActive && !matchGameComplete && (
+          <div className="match-game-setup">
+            <div className="match-hero">
+              <span className="match-hero-icon">🎯</span>
+              <h2>Trò Chơi Nối Từ</h2>
+              <p>Nối các từ tiếng Anh với nghĩa tiếng Việt tương ứng!</p>
+            </div>
+
+            <div className="match-rules">
+              <div className="match-rule">
+                <span className="rule-icon">👆</span>
+                <div><strong>Chọn từ</strong><p>Chọn 1 từ tiếng Anh ở cột trái</p></div>
+              </div>
+              <div className="match-rule">
+                <span className="rule-icon">👉</span>
+                <div><strong>Nối nghĩa</strong><p>Chọn nghĩa tiếng Việt tương ứng ở cột phải</p></div>
+              </div>
+              <div className="match-rule">
+                <span className="rule-icon">⚡</span>
+                <div><strong>Combo</strong><p>Nối liên tiếp đúng để nhân điểm!</p></div>
+              </div>
+            </div>
+
+            <div className="match-pair-selector">
+              <label>🔢 Số cặp từ:</label>
+              <div className="match-pair-options">
+                {[4, 6, 8, 10].map(n => (
+                  <button
+                    key={n}
+                    className={`match-pair-btn ${matchPairCount === n ? 'active' : ''}`}
+                    onClick={() => setMatchPairCount(n)}
+                  >
+                    {n} cặp
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              className="match-start-btn"
+              onClick={startMatchGame}
+              disabled={matchLoadingGame}
+            >
+              {matchLoadingGame ? (
+                <><span className="match-spinner" /> Đang tải...</>
+              ) : (
+                <>🚀 Bắt Đầu Chơi!</>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* MATCH GAME ACTIVE */}
+        {activeTab === 'match' && matchGameActive && !matchGameComplete && (
+          <div className="match-game-board">
+            <div className="match-game-header">
+              <button className="back-btn" onClick={() => { setMatchGameActive(false); setMatchGameComplete(false); }}>← Quay lại</button>
+              <div className="match-hud">
+                <div className="hud-item score">
+                  <span className="hud-icon">⭐</span>
+                  <span className="hud-value">{matchScore}</span>
+                </div>
+                {matchCombo > 1 && (
+                  <div className={`hud-item combo ${matchCombo >= 5 ? 'on-fire' : ''}`}>
+                    <span className="hud-value">x{matchCombo}</span>
+                    <span className="hud-label">{matchCombo >= 5 ? '🔥 On Fire!' : 'Combo!'}</span>
+                  </div>
+                )}
+                <div className="hud-item timer">
+                  <span className="hud-icon">⏱️</span>
+                  <span className="hud-value">{formatMatchTime(matchTimer)}</span>
+                </div>
+                <div className="hud-item progress">
+                  <span className="hud-value">{matchedPairs.size}/{matchWords.length}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="match-progress-track">
+              <div
+                className="match-progress-fill"
+                style={{ width: `${(matchedPairs.size / matchWords.length) * 100}%` }}
+              />
+            </div>
+
+            {/* Floating Score Popups */}
+            <div className="floating-scores-container">
+              {floatingScores.map(s => (
+                <div key={s.id} className="floating-score" style={{ left: `${s.x}%` }}>
+                  <span className="fs-points">+{s.points}</span>
+                  {s.combo > 1 && <span className="fs-combo">x{s.combo}</span>}
+                </div>
+              ))}
+            </div>
+
+            <div className="match-columns">
+              {/* English Column */}
+              <div className="match-column en-column">
+                <div className="column-header">🇬🇧 English</div>
+                {shuffledEn.map(w => {
+                  const isMatched = matchedPairs.has(w._id);
+                  const isSelected = matchSelected.en?._id === w._id;
+                  const isWrong = matchWrong.en?._id === w._id;
+                  return (
+                    <button
+                      key={`en-${w._id}`}
+                      className={`match-word-btn ${isMatched ? 'matched' : ''} ${isSelected ? 'selected' : ''} ${isWrong ? 'wrong' : ''}`}
+                      onClick={() => !isMatched && handleMatchSelect('en', w)}
+                      disabled={isMatched}
+                    >
+                      <span className="match-word-text">{w.word}</span>
+                      {w.partOfSpeech && <span className="match-word-pos">({w.partOfSpeech})</span>}
+                      {isMatched && <span className="match-check">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Vietnamese Column */}
+              <div className="match-column vi-column">
+                <div className="column-header">🇻🇳 Tiếng Việt</div>
+                {shuffledVi.map(w => {
+                  const isMatched = matchedPairs.has(w._id);
+                  const isSelected = matchSelected.vi?._id === w._id;
+                  const isWrong = matchWrong.vi?._id === w._id;
+                  return (
+                    <button
+                      key={`vi-${w._id}`}
+                      className={`match-word-btn vi ${isMatched ? 'matched' : ''} ${isSelected ? 'selected' : ''} ${isWrong ? 'wrong' : ''}`}
+                      onClick={() => !isMatched && handleMatchSelect('vi', w)}
+                      disabled={isMatched}
+                    >
+                      <span className="match-word-text">{w.meaning}</span>
+                      {isMatched && <span className="match-check">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MATCH GAME COMPLETE */}
+        {activeTab === 'match' && matchGameComplete && (
+          <div className="match-result">
+            {/* Confetti Effect */}
+            {confettiPieces.length > 0 && (
+              <div className="confetti-container">
+                {confettiPieces.map(p => (
+                  <div
+                    key={p.id}
+                    className="confetti-piece"
+                    style={{
+                      left: `${p.x}%`,
+                      animationDelay: `${p.delay}s`,
+                      animationDuration: `${p.duration}s`,
+                      backgroundColor: p.color,
+                      width: `${p.size}px`,
+                      height: `${p.size * 0.6}px`,
+                      transform: `rotate(${p.rotation}deg)`
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="match-result-card">
+              <div className="result-trophy">
+                {getMatchStars() === 3 ? '🏆' : getMatchStars() === 2 ? '🥈' : '🥉'}
+              </div>
+              <h2 className="result-title">Hoàn Thành!</h2>
+              <div className="result-stars">
+                {[1, 2, 3].map(i => (
+                  <span key={i} className={`result-star ${i <= getMatchStars() ? 'earned' : ''}`}>⭐</span>
+                ))}
+              </div>
+
+              {/* SRS Badge */}
+              <div className="srs-review-badge">
+                <span className="srs-badge-icon">📊</span>
+                <span className="srs-badge-text">
+                  Đã ôn tập SRS: <strong>{matchSrsReviewed}</strong> từ
+                </span>
+              </div>
+
+              <div className="result-stats-grid">
+                <div className="result-stat">
+                  <span className="result-stat-icon">⭐</span>
+                  <span className="result-stat-value">{matchScore}</span>
+                  <span className="result-stat-label">Điểm</span>
+                </div>
+                <div className="result-stat">
+                  <span className="result-stat-icon">⏱️</span>
+                  <span className="result-stat-value">{formatMatchTime(matchTimer)}</span>
+                  <span className="result-stat-label">Thời gian</span>
+                </div>
+                <div className="result-stat">
+                  <span className="result-stat-icon">🎯</span>
+                  <span className="result-stat-value">{getMatchAccuracy()}%</span>
+                  <span className="result-stat-label">Chính xác</span>
+                </div>
+                <div className="result-stat">
+                  <span className="result-stat-icon">🔗</span>
+                  <span className="result-stat-value">{matchWords.length}</span>
+                  <span className="result-stat-label">Cặp từ</span>
+                </div>
+              </div>
+
+              <div className="result-word-list">
+                <h4>📝 Các từ đã nối:</h4>
+                {matchWords.map(w => (
+                  <div key={w._id} className="result-word-row">
+                    <span className="rw-en">{w.word}</span>
+                    <span className="rw-arrow">↔</span>
+                    <span className="rw-vi">{w.meaning}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="result-actions">
+                <button className="match-start-btn" onClick={startMatchGame}>🔄 Chơi Lại</button>
+                <button className="cancel-btn" onClick={() => { setMatchGameActive(false); setMatchGameComplete(false); }}>← Quay lại</button>
+              </div>
             </div>
           </div>
         )}

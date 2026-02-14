@@ -5,6 +5,7 @@ import {
   PieChart, Pie, Cell, Legend,
   AreaChart, Area, CartesianGrid
 } from 'recharts';
+import { dashboardAPI } from '../services/api';
 import './Dashboard.css';
 
 // Lazy render wrapper - only renders children when scrolled into view
@@ -197,13 +198,10 @@ export function Dashboard() {
   const greeting = useMemo(() => getGreeting(), []);
 
   useEffect(() => {
-    const headers = { 'Authorization': `Bearer ${localStorage.getItem('token')}` };
-
     const fetchAll = async () => {
       try {
-        // Single combined API call instead of 7 separate requests
-        const response = await fetch('/api/dashboard/all', { headers });
-        const data = await response.json();
+        const response = await dashboardAPI.getAllData();
+        const data = response.data;
 
         if (data.success) {
           setOverview(data.overview);
@@ -228,40 +226,6 @@ export function Dashboard() {
         }
       } catch (error) {
         console.error('Dashboard fetch error:', error);
-        // Fallback to individual requests if combined endpoint fails
-        try {
-          const [ovRes, vocRes, gramRes, sessRes, weekRes, srsRes, missRes] = await Promise.all([
-            fetch('/api/dashboard/overview', { headers }),
-            fetch('/api/dashboard/vocabulary-stats', { headers }),
-            fetch('/api/dashboard/grammar-progress', { headers }),
-            fetch('/api/dashboard/session-stats', { headers }),
-            fetch('/api/dashboard/weekly-report', { headers }),
-            fetch('/api/vocabulary/srs-stats', { headers }),
-            fetch('/api/dashboard/missions', { headers })
-          ]);
-
-          const [ovData, vocData, gramData, sessData, weekData, srsData, missData] = await Promise.all([
-            ovRes.json(), vocRes.json(), gramRes.json(), sessRes.json(), weekRes.json(), srsRes.json(), missRes.json()
-          ]);
-
-          if (ovData.success) setOverview(ovData.stats);
-          if (vocData.success) setVocabStats(vocData);
-          if (gramData.success) setGrammarProgress(gramData);
-          if (sessData.success) setSessionStats(sessData);
-          if (weekData.success) setWeeklyReport(weekData.report);
-          if (srsData.success) setSrsStats(srsData.stats);
-          if (missData.success) {
-            setMissions(missData.missions);
-            setLevelData({
-              xp: missData.xp,
-              level: missData.level,
-              levelInfo: missData.levelInfo,
-              streak: missData.streak
-            });
-          }
-        } catch (fallbackError) {
-          console.error('Dashboard fallback fetch error:', fallbackError);
-        }
       } finally {
         setLoading(false);
       }
@@ -272,15 +236,8 @@ export function Dashboard() {
 
   const handleClaimMission = useCallback(async (mission) => {
     try {
-      const res = await fetch('/api/dashboard/claim-mission', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ missionId: mission.id, xp: mission.xp })
-      });
-      const data = await res.json();
+      const response = await dashboardAPI.claimMission(mission.id, mission.xp);
+      const data = response.data;
       if (data.success) {
         setLevelData({ xp: data.xp, level: data.level, levelInfo: data.levelInfo, streak: data.streak });
         setMissions(prev => prev.map(m => m.id === mission.id ? { ...m, claimed: true } : m));

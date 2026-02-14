@@ -1,4 +1,5 @@
 import create from 'zustand';
+import { userAPI } from '../services/api';
 
 export const useUserStore = create((set) => ({
   // State
@@ -36,21 +37,22 @@ export const useUserStore = create((set) => ({
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('/api/users/profile', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await userAPI.getProfile();
+      const data = response.data;
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          set({ user: data.user, isAuthenticated: true });
-        }
+      // Check success based on response structure
+      if (data.success) {
+        set({ user: data.user, isAuthenticated: true });
       } else {
+        // IfAPI returns success:false but 200 OK (rare but possible)
         localStorage.removeItem('token');
         set({ token: null, isAuthenticated: false, user: null });
       }
     } catch (error) {
       console.error('Fetch user error:', error);
+      // Handle 401 specifically if needed, though interceptor handles it
+      localStorage.removeItem('token');
+      set({ token: null, isAuthenticated: false, user: null });
     }
   },
 

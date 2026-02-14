@@ -1,0 +1,22 @@
+services:
+  # Backend API
+  - type: web
+    name: learn-english-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false # Set manually in Render dashboard
+      - key: JWT_SECRET
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+    healthCheckPath: /health

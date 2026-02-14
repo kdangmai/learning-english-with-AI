@@ -5,7 +5,7 @@ import Modal from '../components/common/Modal';
 import { useToast } from '../context/ToastContext';
 import ConfirmModal from '../components/common/ConfirmModal';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
-import { chatbotAPI } from '../services/api';
+import { chatbotAPI, roleplayAPI } from '../services/api';
 
 export default function Roleplay() {
     const [step, setStep] = useState('selection'); // selection, chat, report
@@ -90,19 +90,12 @@ export default function Roleplay() {
         setSelectedScenario(scenario);
 
         try {
-            const response = await fetch('/api/roleplay/start', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    scenario: scenario.title,
-                    role: scenario.role
-                })
+            const response = await roleplayAPI.startSession({
+                scenario: scenario.title,
+                role: scenario.role
             });
 
-            const data = await response.json();
+            const data = response.data;
             if (data.success) {
                 setSessionId(data.sessionId);
                 setMessages(data.messages); // Should contain the initial AI greeting
@@ -129,21 +122,9 @@ export default function Roleplay() {
         setLoading(true);
 
         try {
-            const body = {
-                sessionId,
-                message: content
-            };
+            const response = await roleplayAPI.sendMessage(sessionId, content);
 
-            const response = await fetch('/api/roleplay/message', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify(body)
-            });
-
-            const data = await response.json();
+            const data = response.data;
             if (data.success) {
                 setMessages(data.messages);
             }
@@ -165,16 +146,9 @@ export default function Roleplay() {
 
         setLoading(true);
         try {
-            const response = await fetch('/api/roleplay/end', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ sessionId })
-            });
+            const response = await roleplayAPI.endSession(sessionId);
 
-            const data = await response.json();
+            const data = response.data;
             if (data.success) {
                 setReport(data.report);
                 setStep('report');

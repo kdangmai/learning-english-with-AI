@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './Pronunciation.css';
 import { useToast } from '../context/ToastContext';
+import { pronunciationAPI } from '../services/api';
 
 const LEVELS = [
     { value: 'A1', label: 'Cơ bản', color: '#10b981' },
@@ -155,15 +156,8 @@ export default function Pronunciation() {
     const handleAnalysis = async (target, audioBase64) => {
         setLoading(true);
         try {
-            const response = await fetch('/api/pronunciation/analyze', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ targetSentence: target, audioData: audioBase64 })
-            });
-            const data = await response.json();
+            const response = await pronunciationAPI.analyze({ targetSentence: target, audioData: audioBase64 });
+            const data = response.data;
             if (data.success) {
                 setAnalysis(data);
                 setSessionCount(prev => prev + 1);
@@ -187,10 +181,8 @@ export default function Pronunciation() {
         setSpokenText('');
         setAnalysis(null);
         try {
-            const response = await fetch(`/api/pronunciation/generate?level=${level}`, {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            const data = await response.json();
+            const response = await pronunciationAPI.generate(level);
+            const data = response.data;
             if (data.success) {
                 setTargetSentence(data.sentence);
             } else {

@@ -48,10 +48,8 @@ export function Chatbot() {
   const fetchHistory = async () => {
     try {
       // Exclude roleplay sessions from general chatbot history
-      const response = await fetch('/api/chatbot/history?limit=20&excludeTopic=roleplay', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await response.json();
+      const response = await chatbotAPI.getHistory({ limit: 20, excludeTopic: 'roleplay' });
+      const data = response.data;
       if (data.success) {
         setSessions(data.sessions || []);
       }
@@ -63,10 +61,8 @@ export function Chatbot() {
   const loadSession = async (sessionId) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/chatbot/history?sessionId=${sessionId}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await response.json();
+      const response = await chatbotAPI.getSessionHistory(sessionId);
+      const data = response.data;
       if (data.success && data.session) {
         setMessages(data.messages || []);
         setCurrentSessionId(sessionId);
@@ -102,19 +98,12 @@ export function Chatbot() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/chatbot/message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          message: currentInput,
-          sessionId: currentSessionId
-        })
+      const response = await chatbotAPI.sendMessage({
+        message: currentInput,
+        sessionId: currentSessionId
       });
 
-      const data = await response.json();
+      const data = response.data;
 
       if (!currentSessionId && data.sessionId) {
         setCurrentSessionId(data.sessionId);
@@ -166,15 +155,10 @@ export function Chatbot() {
     const sessionId = confirmDelete;
     setConfirmDelete(null);
     try {
-      const res = await fetch(`/api/chatbot/session/${sessionId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        setSessions(prev => prev.filter(s => s._id !== sessionId));
-        if (currentSessionId === sessionId) {
-          handleNewChat();
-        }
+      await chatbotAPI.deleteSession(sessionId);
+      setSessions(prev => prev.filter(s => s._id !== sessionId));
+      if (currentSessionId === sessionId) {
+        handleNewChat();
       }
     } catch (err) {
       console.error("Failed to delete", err);

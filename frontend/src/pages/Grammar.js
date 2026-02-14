@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import ReactMarkdown from 'react-markdown';
 import './Grammar.css';
 import { useToast } from '../context/ToastContext';
+import { grammarAPI } from '../services/api';
 
 
 
@@ -138,10 +139,8 @@ export function Grammar() {
 
   const fetchTenses = async () => {
     try {
-      const response = await fetch('/api/grammar/tenses', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await response.json();
+      const response = await grammarAPI.getTenses();
+      const data = response.data;
       if (data.success) setTenses(data.tenses);
     } catch (error) {
       console.error('Error fetching tenses:', error);
@@ -152,10 +151,8 @@ export function Grammar() {
 
   const fetchTenseDetails = async (tenseName) => {
     try {
-      const response = await fetch(`/api/grammar/tenses/${encodeURIComponent(tenseName)}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await response.json();
+      const response = await grammarAPI.getTenseDetails(tenseName);
+      const data = response.data;
       if (data.success) setTenseDetails(data.tense);
     } catch (error) {
       console.error('Error fetching tense details:', error);
@@ -165,15 +162,8 @@ export function Grammar() {
   const startExercises = async () => {
     setLoadingExercises(true);
     try {
-      const response = await fetch('/api/grammar/generate-exercises', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ tenseName: selectedTense })
-      });
-      const data = await response.json();
+      const response = await grammarAPI.generateExercises(selectedTense);
+      const data = response.data;
       if (data.success && data.exercises?.length > 0) {
         setExercises(data.exercises);
         setExerciseStarted(true);
@@ -249,16 +239,8 @@ export function Grammar() {
         answers.push({ isCorrect: i < score });
       }
 
-      const response = await fetch('/api/grammar/exercise', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ tenseName: selectedTense, answers })
-      });
-
-      const data = await response.json();
+      const response = await grammarAPI.submitExercise({ tenseName: selectedTense, answers });
+      const data = response.data;
       if (data.success) {
         fetchTenses();
         setSelectedTense(null);

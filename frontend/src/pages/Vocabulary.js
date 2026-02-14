@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import './Vocabulary.css';
 
 import Modal from '../components/common/Modal';
+import { vocabularyAPI, folderAPI } from '../services/api';
 
 const ITEMS_PER_PAGE = 30;
 
@@ -89,10 +90,8 @@ export function Vocabulary() {
 
   const fetchFolders = async () => {
     try {
-      const res = await fetch('/api/folders', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await res.json();
+      const response = await folderAPI.getAll();
+      const data = response.data;
       if (data.success) setFolders(data.folders);
     } catch (err) {
       console.error("Fetch folders error", err);
@@ -101,10 +100,8 @@ export function Vocabulary() {
 
   const fetchSrsStats = async () => {
     try {
-      const res = await fetch('/api/vocabulary/srs-stats', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await res.json();
+      const response = await vocabularyAPI.getSRSStats();
+      const data = response.data;
       if (data.success) setSrsStats(data.stats);
     } catch (err) {
       console.error("SRS stats error", err);
@@ -120,12 +117,8 @@ export function Vocabulary() {
       if (libraryTab === 'learned') statusParam = 'known';
       if (libraryTab === 'mastered') statusParam = 'mastered';
 
-      const response = await fetch(`/api/vocabulary/by-status/${statusParam}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
+      const response = await vocabularyAPI.getWordsByStatus(statusParam);
+      const data = response.data;
       let fetchedWords = data.words || [];
 
       if (selectedFolder) {
@@ -180,10 +173,8 @@ export function Vocabulary() {
   // Fetch SRS intervals for a specific card
   const fetchCardIntervals = async (cardId) => {
     try {
-      const res = await fetch(`/api/vocabulary/intervals/${cardId}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await res.json();
+      const response = await vocabularyAPI.getIntervals(cardId);
+      const data = response.data;
       if (data.success) {
         setFlashcards(prev => prev.map(c =>
           c._id === cardId ? { ...c, nextIntervals: data.intervals } : c
@@ -200,21 +191,15 @@ export function Vocabulary() {
 
     setLoading(true);
     try {
-      const response = await fetch('/api/vocabulary/start-learning', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({
-          topic: topicToUse,
-          count: wordCount,
-          category: selectedType,
-          partOfSpeech: selectedPart,
-          level: selectedLevel
-        })
+      const response = await vocabularyAPI.startLearning({
+        topic: topicToUse,
+        count: wordCount,
+        category: selectedType,
+        partOfSpeech: selectedPart,
+        level: selectedLevel
       });
 
-      if (response.status === 401) { error('Session expired.'); localStorage.removeItem('token'); navigate('/login'); return; }
-
-      const data = await response.json();
+      const data = response.data;
       if (data.success) {
         setFlashcards(data.words || []);
         setCurrentCardIndex(0);
@@ -239,10 +224,8 @@ export function Vocabulary() {
   const startReviewSession = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/vocabulary/flashcards?limit=20`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await response.json();
+      const response = await vocabularyAPI.getFlashcards({ limit: 20 });
+      const data = response.data;
       if (data.success && data.flashcards.length > 0) {
         setFlashcards(data.flashcards);
         setCurrentCardIndex(0);
@@ -273,16 +256,8 @@ export function Vocabulary() {
     setSessionResults(prev => ({ ...prev, [rating]: (prev[rating] || 0) + 1 }));
 
     try {
-      const res = await fetch('/api/vocabulary/srs-review', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ wordId: card._id, rating })
-      });
-
-      await res.json();
+      const response = await vocabularyAPI.reviewWord({ wordId: card._id, rating });
+      await response.data; // Wait for completion
 
       if (currentCardIndex < flashcards.length - 1) {
         const nextIndex = currentCardIndex + 1;
@@ -321,12 +296,8 @@ export function Vocabulary() {
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return warning("Nhập tên thư mục");
     try {
-      const res = await fetch('/api/folders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ name: newFolderName })
-      });
-      const data = await res.json();
+      const response = await folderAPI.create(newFolderName);
+      const data = response.data;
       if (data.success) {
         setFolders([data.folder, ...folders]);
         setTargetFolderId(data.folder._id);
@@ -343,12 +314,8 @@ export function Vocabulary() {
   const handleAddToFolder = async () => {
     if (!targetFolderId) return warning("Chọn thư mục");
     try {
-      const res = await fetch('/api/folders/add-words', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ folderId: targetFolderId, wordIds: Array.from(selectedWords) })
-      });
-      const data = await res.json();
+      const response = await folderAPI.addWords(targetFolderId, Array.from(selectedWords));
+      const data = response.data;
       if (data.success) {
         success(`Đã thêm ${selectedWords.size} từ vào thư mục.`);
         setShowFolderModal(false);
@@ -364,11 +331,8 @@ export function Vocabulary() {
 
   const handleDeleteWord = async (wordId) => {
     try {
-      const res = await fetch(`/api/vocabulary/${wordId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await res.json();
+      const response = await vocabularyAPI.deleteWord(wordId);
+      const data = response.data;
       if (data.success) {
         success("Đã xóa từ!");
         setWords(prev => prev.filter(w => w._id !== wordId));
@@ -387,16 +351,8 @@ export function Vocabulary() {
     if (!window.confirm(confirmMsg)) return;
 
     try {
-      // Single bulk-delete API call instead of N individual requests
-      const res = await fetch('/api/vocabulary/bulk-delete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ wordIds: Array.from(selectedWords) })
-      });
-      const data = await res.json();
+      const response = await vocabularyAPI.bulkDelete(Array.from(selectedWords));
+      const data = response.data;
       if (data.success) {
         success(`Đã xóa ${data.deletedCount} từ!`);
         setSelectedWords(new Set());
@@ -568,14 +524,7 @@ export function Vocabulary() {
   // SRS review for matched words (fire & forget)
   const reviewMatchedWord = async (wordId) => {
     try {
-      await fetch('/api/vocabulary/srs-review', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ wordId, rating: 'good' })
-      });
+      await vocabularyAPI.reviewWord({ wordId, rating: 'good' });
       setMatchSrsReviewed(prev => prev + 1);
     } catch (err) {
       // Silent fail — don't interrupt game
@@ -610,10 +559,8 @@ export function Vocabulary() {
   const startMatchGame = async () => {
     setMatchLoadingGame(true);
     try {
-      const res = await fetch(`/api/vocabulary/match-game?count=${matchPairCount}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await res.json();
+      const response = await vocabularyAPI.matchGame(matchPairCount);
+      const data = response.data;
       if (data.success && data.words.length >= 3) {
         const words = data.words;
         setMatchWords(words);

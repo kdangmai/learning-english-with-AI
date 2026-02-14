@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import './SentenceWriting.css';
 import { useToast } from '../context/ToastContext';
+import { sentenceAPI } from '../services/api';
 
 const SUGGESTED_TOPICS = [
   { label: 'Travel', icon: '✈️' },
@@ -47,15 +48,8 @@ export function SentenceWriting() {
     setTranslationAnswer('');
     setHints(null);
     try {
-      const response = await fetch('/api/sentences/generate-random', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ difficulty: level, topic })
-      });
-      const data = await response.json();
+      const response = await sentenceAPI.generateRandomResponse({ difficulty: level, topic });
+      const data = response.data;
       if (data.success) {
         setVietnameseSentence(data.vietnameseSentence);
         // Focus textarea after generating
@@ -75,15 +69,8 @@ export function SentenceWriting() {
     if (!vietnameseSentence.trim()) return;
     setIsLoading(true);
     try {
-      const response = await fetch('/api/sentences/get-hints', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ vietnameseSentence, difficulty: level })
-      });
-      const data = await response.json();
+      const response = await sentenceAPI.getHints({ vietnameseSentence, difficulty: level });
+      const data = response.data;
       setHints(data.hints);
     } catch (error) {
       console.error('Error getting hints:', error);
@@ -99,20 +86,13 @@ export function SentenceWriting() {
     }
     setIsLoading(true);
     try {
-      const response = await fetch('/api/sentences/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          vietnameseSentence,
-          userAnswer: translationAnswer,
-          difficulty: level,
-          grammarDifficulty: grammarLevel
-        })
+      const response = await sentenceAPI.submitSentence({
+        vietnameseSentence,
+        userAnswer: translationAnswer,
+        difficulty: level,
+        grammarDifficulty: grammarLevel
       });
-      const data = await response.json();
+      const data = response.data;
       setTranslationFeedback(data.feedback);
       setSessionCount(prev => prev + 1);
 

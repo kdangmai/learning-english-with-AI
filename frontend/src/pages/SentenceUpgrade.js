@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './SentenceWriting.css';
 import { useToast } from '../context/ToastContext';
+import { sentenceAPI } from '../services/api';
 
 const DIFFICULTY_LEVELS = [
     { value: 'A1', label: 'Beginner', color: '#10b981' },
@@ -28,15 +29,12 @@ export function SentenceUpgrade() {
         setLoading(true);
         setUpgradeResult(null);
         try {
-            const response = await fetch('/api/sentences/upgrade', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({ userAnswer: upgradeInput, grammarLevel, vocabularyLevel: vocabLevel })
+            const response = await sentenceAPI.upgradeSentence({
+                userAnswer: upgradeInput,
+                grammarLevel,
+                vocabularyLevel: vocabLevel
             });
-            const data = await response.json();
+            const data = response.data;
 
             if (data.success) {
                 setUpgradeResult({

@@ -87,25 +87,36 @@ export const grammarAPI = {
   getTenseDetails: (tenseName) => apiClient.get(`/grammar/tenses/${tenseName}`),
   getProgress: () => apiClient.get('/grammar/progress'),
   submitExercise: (data) => apiClient.post('/grammar/exercise', data),
-  completeTense: (tenseName) => apiClient.post('/grammar/complete-tense', { tenseName })
+  completeTense: (tenseName) => apiClient.post('/grammar/complete-tense', { tenseName }),
+  generateExercises: (tenseName) => apiClient.post('/grammar/generate-exercises', { tenseName })
 };
 
 // Vocabulary endpoints
 export const vocabularyAPI = {
+  // Vocabulary endpoints
   getTopics: () => apiClient.get('/vocabulary/topics'),
   getWordsByTopic: (topic) => apiClient.get(`/vocabulary/by-topic/${topic}`),
   getWordsByStatus: (status) => apiClient.get(`/vocabulary/by-status/${status}`),
   addWord: (data) => apiClient.post('/vocabulary/add', data),
   updateWord: (wordId, data) => apiClient.put(`/vocabulary/${wordId}`, data),
   reviewWord: (data) => apiClient.post('/vocabulary/review', data),
-  getFlashcards: () => apiClient.get('/vocabulary/flashcards'),
+
+  // Flashcards & SRS
+  getFlashcards: (params) => apiClient.get('/vocabulary/flashcards', { params }), // supports ?limit=20
   generateFlashcards: (topic) => apiClient.post('/vocabulary/generate-flashcards', { topic }),
-  // Apply action on a word from flashcard: { action: 'learned'|'add'|'skip' }
+  getSRSStats: () => apiClient.get('/vocabulary/srs-stats'),
+  getSRSReview: () => apiClient.get('/vocabulary/srs-review'),
+  getIntervals: (wordId) => apiClient.get(`/vocabulary/intervals/${wordId}`),
+
+  // Learning & Games
+  startLearning: (wordIds) => apiClient.post('/vocabulary/start-learning', { wordIds }),
+  matchGame: (count) => apiClient.get(`/vocabulary/match-game?count=${count}`),
+
+  // Actions
   applyAction: (wordId, body) => apiClient.post(`/vocabulary/${wordId}/action`, body),
-  // Bulk delete words (single operation instead of N individual requests)
   bulkDelete: (wordIds) => apiClient.post('/vocabulary/bulk-delete', { wordIds }),
-  // Delete single word
-  deleteWord: (wordId) => apiClient.delete(`/vocabulary/${wordId}`)
+  deleteWord: (wordId) => apiClient.delete(`/vocabulary/${wordId}`),
+  bulkAddWords: (data) => apiClient.post('/vocabulary/bulk-add', data) // Assuming endpoint exists or mapped to add
 };
 
 // Sentence endpoints
@@ -115,7 +126,8 @@ export const sentenceAPI = {
   upgradeSentence: (data) => apiClient.post('/sentences/upgrade', data),
   getHistory: () => apiClient.get('/sentences/history'),
   getSentence: (sentenceId) => apiClient.get(`/sentences/${sentenceId}`),
-  getHints: (data) => apiClient.post('/sentences/get-hints', data)
+  getHints: (data) => apiClient.post('/sentences/get-hints', data),
+  generateRandomResponse: (data) => apiClient.post('/sentences/generate-random', data) // Renamed from generate-random fetch
 };
 
 // Chatbot endpoints
@@ -125,9 +137,36 @@ export const chatbotAPI = {
     message: `Translate the following to Vietnamese. Output ONLY the translation, nothing else:\n"${text}"`,
     conversationHistory: []
   }),
-  getHistory: () => apiClient.get('/chatbot/history'),
+  getHistory: (params) => apiClient.get('/chatbot/history', { params }),
+  getSessionHistory: (sessionId) => apiClient.get(`/chatbot/history?sessionId=${sessionId}`),
   startSession: (data) => apiClient.post('/chatbot/session/start', data),
-  endSession: (sessionId) => apiClient.post(`/chatbot/session/end`, { sessionId })
+  endSession: (sessionId) => apiClient.post(`/chatbot/session/end`, { sessionId }),
+  getSession: (sessionId) => apiClient.get(`/chatbot/session/${sessionId}`),
+  deleteSession: (sessionId) => apiClient.delete(`/chatbot/session/${sessionId}`)
+};
+
+// Pronunciation endpoints
+export const pronunciationAPI = {
+  analyze: (data) => apiClient.post('/pronunciation/analyze', data),
+  generate: (level) => apiClient.get(`/pronunciation/generate?level=${level}`)
+};
+
+// Roleplay endpoints
+export const roleplayAPI = {
+  startSession: (data) => apiClient.post('/roleplay/start', data),
+  sendMessage: (sessionId, message) => apiClient.post('/roleplay/message', { sessionId, message }),
+  endSession: (sessionId) => apiClient.post('/roleplay/end', { sessionId }),
+  getScenarios: () => apiClient.get('/roleplay/scenarios') // Assuming this exists or hardcoded
+};
+
+// Folder Management endpoints
+export const folderAPI = {
+  getAll: () => apiClient.get('/folders'),
+  create: (name) => apiClient.post('/folders', { name }),
+  update: (id, name) => apiClient.put(`/folders/${id}`, { name }),
+  delete: (id) => apiClient.delete(`/folders/${id}`),
+  addWords: (folderId, wordIds) => apiClient.post('/folders/add-words', { folderId, wordIds }),
+  removeWords: (folderId, wordIds) => apiClient.post('/folders/remove-words', { folderId, wordIds })
 };
 
 // Dashboard endpoints

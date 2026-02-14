@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { authAPI } from '../services/api';
 import './AuthForm.css';
 
 /* ================================================================
@@ -102,24 +103,23 @@ function AuthPage({ initialMode }) {
         setLoginLoading(true);
         setLoginError('');
         try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(loginData)
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                if (data.requiresVerification) {
-                    setOtpEmail(data.email);
-                    setShowOTPScreen(true);
-                    return;
-                }
-                throw new Error(data.message || 'Đăng nhập thất bại.');
+            const response = await authAPI.login(loginData);
+            const data = response.data;
+            if (data.requiresVerification) {
+                setOtpEmail(data.email);
+                setShowOTPScreen(true);
+                return;
             }
             localStorage.setItem('token', data.token);
             window.location.href = '/dashboard';
         } catch (err) {
-            setLoginError(err.message);
+            const msg = err.response?.data?.message || err.message || 'Đăng nhập thất bại.';
+            if (err.response?.data?.requiresVerification) {
+                setOtpEmail(err.response.data.email);
+                setShowOTPScreen(true);
+                return;
+            }
+            setLoginError(msg);
         } finally {
             setLoginLoading(false);
         }
@@ -137,20 +137,13 @@ function AuthPage({ initialMode }) {
         setRegError('');
         setRegLoading(true);
         try {
-            // Backend expects: username, email, password, confirmPassword, fullName
-            // We will provide confirmPassword = password if not present in form
             const payload = {
                 ...regData,
-                confirmPassword: regData.password // Auto-confirm for this design
+                confirmPassword: regData.password
             };
 
-            const response = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || 'Đăng ký thất bại');
+            const response = await authAPI.register(payload);
+            const data = response.data;
 
             if (data.requiresOTP) {
                 setOtpEmail(data.email || regData.email);
@@ -158,7 +151,8 @@ function AuthPage({ initialMode }) {
                 setCountdown(60);
             }
         } catch (err) {
-            setRegError(err.message);
+            const msg = err.response?.data?.message || err.message || 'Đăng ký thất bại';
+            setRegError(msg);
         } finally {
             setRegLoading(false);
         }
@@ -174,13 +168,8 @@ function AuthPage({ initialMode }) {
         setOtpSuccess('');
 
         try {
-            const response = await fetch('/api/auth/resend-otp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: otpEmail })
-            });
-
-            const data = await response.json();
+            const response = await authAPI.resendOTP(otpEmail);
+            const data = response.data;
 
             if (data.success) {
                 setOtpSuccess('📩 Mã OTP mới đã được gửi!');
@@ -191,8 +180,8 @@ function AuthPage({ initialMode }) {
             } else {
                 setOtpError(data.message);
             }
-        } catch {
-            setOtpError('Đã xảy ra lỗi khi gửi lại mã OTP');
+        } catch (err) {
+            setOtpError(err.response?.data?.message || 'Đã xảy ra lỗi khi gửi lại mã OTP');
         } finally {
             setResendingOTP(false);
         }
@@ -212,17 +201,11 @@ function AuthPage({ initialMode }) {
         if (otpCode.length !== 6) { setOtpError('Vui lòng nhập đủ 6 số'); return; }
         setVerifying(true);
         try {
-            const response = await fetch('/api/auth/verify-otp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: otpEmail, otpCode })
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message);
+            await authAPI.verifyOTP(otpEmail, otpCode);
             setOtpSuccess('Thành công!');
             setTimeout(() => { window.location.href = '/login'; }, 1500);
         } catch (err) {
-            setOtpError(err.message);
+            setOtpError(err.response?.data?.message || err.message);
         } finally {
             setVerifying(false);
         }

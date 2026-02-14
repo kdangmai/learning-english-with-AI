@@ -171,7 +171,11 @@ export const adminAPI = {
 
   // Config
   getConfig: () => apiClient.get('/admin/config'),
-  updateConfig: (key, value) => apiClient.put('/admin/config', { key, value })
+  updateConfig: (key, value) => apiClient.put('/admin/config', { key, value }),
+
+  // Server Logs
+  getServerLogs: (params) => apiClient.get('/admin/logs', { params }),
+  clearServerLogs: (params) => apiClient.delete('/admin/logs', { params })
 };
 
 export default apiClient;

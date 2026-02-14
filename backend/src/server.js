@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const path = require('path');
 const connectDB = require('./config/database');
+const logger = require('./services/loggerService');
 
 // Load .env from project root (parent of backend/)
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
@@ -58,6 +59,7 @@ app.get('/api/health', (req, res) => {
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  logger.error('system', `Unhandled error: ${err.message}`, { details: { stack: err.stack }, ip: req.ip });
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Server error',
@@ -70,6 +72,7 @@ if (require.main === module) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    logger.info('system', `Server started on port ${PORT}`);
   });
 }
 

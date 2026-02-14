@@ -6,6 +6,7 @@ const Vocabulary = require('../models/Vocabulary');
 const Grammar = require('../models/Grammar');
 const ChatSession = require('../models/ChatSession');
 const Folder = require('../models/Folder');
+const ServerLog = require('../models/ServerLog');
 
 
 // --- User Management ---
@@ -527,5 +528,81 @@ exports.getKeyStats = async (req, res) => {
     } catch (error) {
         console.error('Get key stats error:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch key stats' });
+    }
+};
+
+// --- Server Logs ---
+
+/**
+ * Get server logs with filtering and pagination.
+ * @route GET /api/admin/logs
+ * @query {string} level - Filter by level (info, warn, error, debug)
+ * @query {string} source - Filter by source (auth, api, system, etc.)
+ * @query {string} search - Search in message text
+ * @query {number} page - Page number (default 1)
+ * @query {number} limit - Items per page (default 50)
+ */
+exports.getServerLogs = async (req, res) => {
+    try {
+        const { level, source, search, page = 1, limit = 50 } = req.query;
+        const filter = {};
+
+        if (level && level !== 'all') filter.level = level;
+        if (source && source !== 'all') filter.source = source;
+        if (search) filter.message = { $regex: search, $options: 'i' };
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const total = await ServerLog.countDocuments(filter);
+
+        const logs = await ServerLog.find(filter)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .populate('userId', 'username email')
+            .lean();
+
+        // Stats for dashboard cards
+        const stats = await ServerLog.aggregate([
+            {
+                $group: {
+                    _id: '$level',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const statMap = { info: 0, warn: 0, error: 0, debug: 0 };
+        stats.forEach(s => { statMap[s._id] = s.count; });
+
+        res.json({
+            success: true,
+            logs,
+            total,
+            page: parseInt(page),
+            totalPages: Math.ceil(total / parseInt(limit)),
+            stats: statMap
+        });
+    } catch (error) {
+        console.error('Get server logs error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch logs' });
+    }
+};
+
+/**
+ * Clear server logs (optionally by level/source).
+ * @route DELETE /api/admin/logs
+ */
+exports.clearServerLogs = async (req, res) => {
+    try {
+        const { level, source } = req.query;
+        const filter = {};
+        if (level && level !== 'all') filter.level = level;
+        if (source && source !== 'all') filter.source = source;
+
+        const result = await ServerLog.deleteMany(filter);
+        res.json({ success: true, message: `Cleared ${result.deletedCount} log entries.` });
+    } catch (error) {
+        console.error('Clear logs error:', error);
+        res.status(500).json({ success: false, message: 'Failed to clear logs' });
     }
 };

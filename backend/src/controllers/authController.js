@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const EmailService = require('../services/emailService');
 const jwt = require('jsonwebtoken');
+const logger = require('../services/loggerService');
 
 /**
  * Register new user - sends OTP to email
@@ -73,8 +74,10 @@ exports.registerUser = async (req, res) => {
       await EmailService.sendOTPEmail(email, otpCode, username);
     } catch (emailError) {
       console.error('Email sending error:', emailError);
-      // Don't fail the registration, just log the error
+      logger.warn('email', `Failed to send OTP to ${email}`, { details: { error: emailError.message }, userId: user._id });
     }
+
+    logger.info('auth', `New user registered: ${username} (${email})`, { userId: user._id, ip: req.ip });
 
     res.status(201).json({
       success: true,
@@ -262,6 +265,7 @@ exports.loginUser = async (req, res) => {
     // Compare password
     const isValidPassword = await user.comparePassword(password);
     if (!isValidPassword) {
+      logger.warn('auth', `Failed login attempt for ${loginIdentifier}`, { ip: req.ip });
       return res.status(400).json({
         success: false,
         message: 'Email/Tên đăng nhập hoặc mật khẩu không chính xác'
@@ -274,6 +278,8 @@ exports.loginUser = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
     );
+
+    logger.info('auth', `User logged in: ${user.username}`, { userId: user._id, ip: req.ip });
 
     res.json({
       success: true,

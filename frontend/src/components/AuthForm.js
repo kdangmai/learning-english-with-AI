@@ -316,15 +316,18 @@ function AuthPage({ initialMode }) {
                         <input className="form__input" type="email" placeholder="Email" name="email" value={regData.email} onChange={handleRegChange} required />
                         <input className="form__input" type="password" placeholder="Password" name="password" value={regData.password} onChange={handleRegChange} required />
 
+
                         {regError && <div className="error-text">{regError}</div>}
 
                         <button className="form__button button submit" disabled={regLoading}>
                             {regLoading ? 'PROCESSING...' : 'SIGN UP'}
                         </button>
 
-                        <div className="mobile-toggle" onClick={toggleSwitch}>
-                            Running out of ideas? <span className="toggle-link">Sign In</span>
-                        </div>
+                        {/* Mobile toggle (visible only on ≤1024px via CSS) */}
+                        <p className="mobile-toggle">
+                            Already have an account?{' '}
+                            <button type="button" className="mobile-toggle-btn" onClick={toggleSwitch}>Sign In</button>
+                        </p>
                     </form>
                 </div>
 
@@ -344,18 +347,20 @@ function AuthPage({ initialMode }) {
 
                         {loginError && <div className="error-text">{loginError}</div>}
 
-                        <button type="button" className="form__link" onClick={() => navigate('/forgot-password')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Forgo your password?</button>
+                        <button type="button" className="form__link" onClick={() => navigate('/forgot-password')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Forgot your password?</button>
                         <button className="form__button button submit" disabled={loginLoading}>
                             {loginLoading ? 'LOADING...' : 'SIGN IN'}
                         </button>
 
-                        <div className="mobile-toggle" onClick={toggleSwitch}>
-                            New here? <span className="toggle-link">Create Account</span>
-                        </div>
+                        {/* Mobile toggle (visible only on ≤1024px via CSS) */}
+                        <p className="mobile-toggle">
+                            Don't have an account?{' '}
+                            <button type="button" className="mobile-toggle-btn" onClick={toggleSwitch}>Sign Up</button>
+                        </p>
                     </form>
                 </div>
 
-                {/* Switch Overlay */}
+                {/* Switch Overlay (hidden on mobile via CSS) */}
                 <div className={switchClasses} id="switch-cnt">
                     <div className={circleClasses}></div>
                     <div className={circleTClasses}></div>

@@ -1,6 +1,7 @@
 /* =============================================
    AUTH FORM — Neumorphic Sliding Overlay
    Theme: Slate & Indigo (App Consistent)
+   FULLY RESPONSIVE
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -9,22 +10,17 @@
     --bg: #f1f5f9;
     --neu-1: #f1f5f9;
     --neu-2: #cbd5e1;
-    /* Slate 300 for shadow */
     --white: #ffffff;
     --gray: #64748b;
-    /* Slate 500 */
     --black: #1e293b;
-    /* Slate 800 */
     --purple: #6366f1;
-    /* Indigo 500 */
     --purple-hover: #4f46e5;
-    /* Indigo 600 */
     --transition: 1.25s;
 }
 
 .auth-body {
     width: 100%;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -33,8 +29,11 @@
     background-color: var(--neu-1);
     color: var(--gray);
     overflow: hidden;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
+/* ==================== MAIN CONTAINER ==================== */
 .main {
     position: relative;
     width: 1000px;
@@ -49,132 +48,377 @@
     transition: transform 0.3s ease;
 }
 
-@media(max-width: 1200px) {
-    .main {
-        transform: scale(0.9);
-    }
+/* ==================== FORM CONTAINER ==================== */
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    width: 600px;
+    height: 100%;
+    padding: 25px;
+    background-color: var(--neu-1);
+    transition: var(--transition);
 }
 
-/* Mobile Toggle - Hidden on Desktop */
-.mobile-toggle {
-    display: none;
-    margin-top: 20px;
+.form {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+.form__icon {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 30px;
+    height: 30px;
+    margin: 0 5px;
+    opacity: .5;
+    transition: .15s;
+    font-size: 1.2rem;
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+.form__icon:hover {
+    opacity: 1;
+    transition: .15s;
+}
+
+.form__input {
+    width: 350px;
+    height: 48px;
+    margin: 8px 0;
+    padding-left: 25px;
     font-size: 14px;
+    letter-spacing: .15px;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    background-color: var(--neu-1);
+    transition: .25s ease;
+    border-radius: 12px;
+    box-shadow: inset 2px 2px 5px var(--neu-2), inset -2px -2px 5px var(--white);
+}
+
+.form__input:focus {
+    box-shadow: inset 4px 4px 8px var(--neu-2), inset -4px -4px 8px var(--white);
+}
+
+.form__span {
+    margin-top: 30px;
+    margin-bottom: 12px;
+}
+
+.form__link {
+    color: var(--black);
+    font-size: 14px;
+    margin-top: 25px;
+    border-bottom: 1px solid var(--gray);
+    line-height: 2;
+    cursor: pointer;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.title {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--black);
+    margin-bottom: 10px;
+}
+
+.description {
+    font-size: 15px;
+    letter-spacing: .25px;
+    text-align: center;
+    line-height: 1.6;
     color: var(--gray);
+}
+
+/* ==================== BUTTON ==================== */
+.button {
+    width: 180px;
+    height: 50px;
+    border-radius: 25px;
+    margin-top: 40px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 1.15px;
+    background: linear-gradient(135deg, var(--purple) 0%, #818cf8 100%);
+    color: var(--white);
+    box-shadow: 6px 6px 12px var(--neu-2), -6px -6px 12px var(--white);
+    border: none;
+    outline: none;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.button:hover {
+    box-shadow: 4px 4px 8px var(--neu-2), -4px -4px 8px var(--white);
+    transform: translateY(-1px);
+}
+
+.button:active {
+    transform: scale(0.98);
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1), inset -2px -2px 5px rgba(255, 255, 255, 0.7);
+}
+
+/* ==================== CONTAINER POSITIONING ==================== */
+.a-container {
+    z-index: 100;
+    left: calc(100% - 600px);
+}
+
+.b-container {
+    left: calc(100% - 600px);
+    z-index: 0;
+}
+
+/* ==================== SWITCH SECTION ==================== */
+.switch {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 400px;
+    padding: 50px;
+    z-index: 200;
+    transition: var(--transition);
+    background-color: var(--neu-1);
+    overflow: hidden;
+    box-shadow: 4px 4px 10px var(--neu-2), -4px -4px 10px var(--white);
+}
+
+.switch__circle {
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background-color: var(--neu-1);
+    box-shadow: inset 8px 8px 12px var(--neu-2), inset -8px -8px 12px var(--white);
+    bottom: -60%;
+    left: -60%;
+    transition: var(--transition);
+}
+
+.switch__circle--t {
+    top: -30%;
+    left: 60%;
+    width: 300px;
+    height: 300px;
+}
+
+.switch__container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    position: absolute;
+    width: 400px;
+    padding: 50px 55px;
+    transition: var(--transition);
+}
+
+.switch__button {
     cursor: pointer;
 }
 
-.toggle-link {
+.switch__button:hover {
+    box-shadow: 6px 6px 10px var(--neu-2), -6px -6px 10px var(--white);
+    transform: scale(.985);
+    transition: .25s;
+}
+
+.switch__button:active,
+.switch__button:focus {
+    box-shadow: 2px 2px 6px var(--neu-2), -2px -2px 6px var(--white);
+    transform: scale(.97);
+    transition: .25s;
+}
+
+/* ==================== TOGGLE CLASSES ==================== */
+.is-txr {
+    left: calc(100% - 400px);
+    transition: var(--transition);
+    transform-origin: left;
+}
+
+.is-txl {
+    left: 0;
+    transition: var(--transition);
+    transform-origin: right;
+}
+
+.is-z200 {
+    z-index: 200;
+    transition: var(--transition);
+}
+
+.is-hidden {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    transition: var(--transition);
+}
+
+.is-gx {
+    animation: is-gx var(--transition);
+}
+
+@keyframes is-gx {
+
+    0%,
+    10%,
+    100% {
+        width: 400px;
+    }
+
+    30%,
+    50% {
+        width: 500px;
+    }
+}
+
+/* ==================== ERROR / SUCCESS MESSAGES ==================== */
+.error-text {
+    color: #e53e3e;
+    font-size: 12px;
+    margin-top: 5px;
+    font-weight: 600;
+}
+
+/* ==================== OTP SCREEN ==================== */
+.main-otp {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: 1000;
+    background-color: var(--neu-1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.4s ease;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.container-otp {
+    width: 450px;
+    max-width: 100%;
+    padding: 50px 40px;
+    border-radius: 20px;
+    background-color: var(--neu-1);
+    box-shadow: 10px 10px 20px var(--neu-2), -10px -10px 20px var(--white);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+}
+
+.otp-icon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    color: var(--purple);
+    text-shadow: 2px 2px 4px var(--neu-2), -2px -2px 4px var(--white);
+}
+
+.otp-inputs {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin: 30px 0;
+}
+
+.otp-field {
+    width: 50px !important;
+    height: 60px !important;
+    font-size: 1.5rem !important;
+    font-weight: 700;
+    text-align: center;
+    padding: 0 !important;
+    border: none !important;
+    outline: none !important;
+    border-radius: 12px !important;
+    background-color: var(--neu-1) !important;
+    color: var(--black) !important;
+    box-shadow: inset 4px 4px 6px var(--neu-2), inset -4px -4px 6px var(--white) !important;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.otp-field:focus {
+    box-shadow: inset 6px 6px 10px var(--neu-2), inset -6px -6px 10px var(--white) !important;
+    color: var(--purple) !important;
+    transform: scale(0.98);
+}
+
+.error-msg {
+    margin: 15px 0;
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #e53e3e;
+    background: var(--neu-1);
+    box-shadow: 4px 4px 8px var(--neu-2), -4px -4px 8px var(--white);
+}
+
+.success-msg {
+    margin: 15px 0;
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #38a169;
+    background: var(--neu-1);
+    box-shadow: 4px 4px 8px var(--neu-2), -4px -4px 8px var(--white);
+}
+
+.otp-resend {
+    margin-top: 25px;
+    font-size: 13px;
+    color: var(--gray);
+}
+
+.otp-resend-btn {
+    background: none;
+    border: none;
     color: var(--purple);
     font-weight: 700;
+    cursor: pointer;
     margin-left: 5px;
+    transition: opacity 0.2s;
 }
 
-/* Responsive Logic for Tablet & Mobile */
-@media(max-width: 800px) {
-    .auth-body {
-        height: auto;
-        min-height: 100vh;
-        padding: 40px 20px;
-        align-items: flex-start;
-        /* Allow scroll on small screens */
-    }
-
-    .main {
-        transform: none !important;
-        /* Disable scaling */
-        width: 100% !important;
-        max-width: 500px;
-        min-width: unset;
-        height: auto;
-        min-height: 600px;
-        flex-direction: column;
-        padding: 10px;
-        box-shadow: 8px 8px 16px var(--neu-2), -8px -8px 16px var(--white);
-    }
-
-    /* Hide the desktop sliding overlay */
-    .switch {
-        display: none !important;
-    }
-
-    /* Container (Forms) Reset */
-    .container {
-        position: relative;
-        width: 100%;
-        height: auto;
-        min-height: 550px;
-        top: 0;
-        left: 0 !important;
-        /* Override left positioning */
-        padding: 20px;
-        transition: none;
-        /* Disable animation on mobile */
-    }
-
-    .form {
-        height: auto;
-        padding: 20px 0;
-    }
-
-    .form__input {
-        width: 100%;
-        /* Full width inputs */
-    }
-
-    .mobile-toggle {
-        display: block;
-        /* Show toggle link on mobile */
-    }
-
-    /* Logic to show/hide forms based on state */
-
-    /* Default (Register Mode) - Hide Login (B) */
-    .b-container {
-        display: none;
-    }
-
-    .a-container {
-        display: flex;
-    }
-
-    /* Login Mode (active classes) - Show Login (B), Hide Register (A) */
-    .a-container.is-txl {
-        display: none;
-    }
-
-    .b-container.is-txl {
-        display: flex;
-        z-index: 10;
-        /* Ensure visibility */
-    }
+.otp-resend-btn:hover {
+    text-decoration: underline;
 }
 
-/* Specific OTP Responsive Fixes */
-@media (max-width: 600px) {
-    .container-otp {
-        padding: 30px 20px;
-        width: 95%;
-    }
+.otp-resend-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    text-decoration: none;
+}
 
-    .otp-inputs {
-        gap: 8px;
-    }
-
-    .otp-field {
-        width: 40px !important;
-        height: 50px !important;
-        font-size: 1.2rem !important;
-    }
-
-    .title {
-        font-size: 24px;
-    }
-
-    .form__title {
-        font-size: 26px;
-        text-align: center;
-    }
+.back-btn {
+    margin-top: 20px;
+    font-size: 13px;
+    color: var(--gray);
+    cursor: pointer;
+    text-decoration: underline;
 }
 
 @keyframes fadeIn {
@@ -184,5 +428,237 @@
 
     to {
         opacity: 1;
+    }
+}
+
+/* ==================== MOBILE TOGGLE LINK ==================== */
+.mobile-toggle {
+    display: none;
+    /* Hidden on desktop */
+    margin-top: 20px;
+    font-size: 13px;
+    color: var(--gray);
+    text-align: center;
+}
+
+.mobile-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--purple);
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 13px;
+    text-decoration: underline;
+    font-family: inherit;
+}
+
+.mobile-toggle-btn:hover {
+    color: var(--purple-hover);
+}
+
+/* ================================================================
+   RESPONSIVE BREAKPOINTS
+   ================================================================ */
+
+/* ---- Tablet Landscape (≤1200px) ---- */
+@media (max-width: 1200px) {
+    .main {
+        transform: scale(0.85);
+    }
+}
+
+/* ---- Tablet Portrait (≤1024px) — STACKED LAYOUT ---- */
+@media (max-width: 1024px) {
+    .main {
+        /* Switch to stacked (mobile-friendly) layout */
+        transform: none;
+        width: 100%;
+        max-width: 460px;
+        min-width: unset;
+        min-height: unset;
+        height: auto;
+        padding: 30px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow: 8px 8px 18px var(--neu-2), -8px -8px 18px var(--white);
+    }
+
+    /* Hide the sliding switch overlay */
+    .switch {
+        display: none !important;
+    }
+
+    /* Reset absolute positioning for containers */
+    .container {
+        position: relative;
+        width: 100%;
+        height: auto;
+        left: 0 !important;
+        padding: 10px 0;
+    }
+
+    /* Hide inactive container */
+    .a-container {
+        display: flex;
+    }
+
+    .b-container {
+        display: none;
+    }
+
+    .a-container.is-txl {
+        display: none;
+    }
+
+    .b-container.is-txl {
+        display: flex;
+        z-index: auto;
+    }
+
+    .form {
+        height: auto;
+        padding: 10px 0;
+    }
+
+    .form__input {
+        width: 100%;
+        max-width: 360px;
+    }
+
+    .form__span {
+        margin-top: 15px;
+        margin-bottom: 8px;
+    }
+
+    .title {
+        font-size: 26px;
+    }
+
+    .button {
+        margin-top: 25px;
+    }
+
+    /* Show a toggle link below the form */
+    .main::after {
+        content: '';
+        display: block;
+        width: 100%;
+        height: 0;
+    }
+
+    .mobile-toggle {
+        display: block;
+    }
+}
+
+/* ---- Mobile (≤600px) ---- */
+@media (max-width: 600px) {
+    .auth-body {
+        padding: 10px;
+        align-items: flex-start;
+        padding-top: 40px;
+    }
+
+    .main {
+        max-width: 100%;
+        padding: 25px 15px;
+        border-radius: 16px;
+    }
+
+    .form__input {
+        width: 100%;
+        max-width: 100%;
+        height: 44px;
+        font-size: 13px;
+        padding-left: 18px;
+    }
+
+    .title {
+        font-size: 22px;
+    }
+
+    .form__span,
+    .description {
+        font-size: 12px;
+    }
+
+    .button {
+        width: 160px;
+        height: 44px;
+        font-size: 13px;
+        margin-top: 20px;
+    }
+
+    .form__link {
+        font-size: 12px;
+        margin-top: 15px;
+    }
+
+    /* OTP Mobile */
+    .container-otp {
+        padding: 30px 20px;
+        border-radius: 16px;
+    }
+
+    .otp-inputs {
+        gap: 8px;
+        margin: 20px 0;
+    }
+
+    .otp-field {
+        width: 42px !important;
+        height: 50px !important;
+        font-size: 1.2rem !important;
+        border-radius: 10px !important;
+    }
+
+    .otp-icon {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+    }
+
+    .error-msg,
+    .success-msg {
+        font-size: 12px;
+        padding: 8px 16px;
+    }
+}
+
+/* ---- Very Small Mobile (≤400px) ---- */
+@media (max-width: 400px) {
+    .auth-body {
+        padding: 5px;
+        padding-top: 20px;
+    }
+
+    .main {
+        padding: 20px 10px;
+    }
+
+    .form__input {
+        height: 40px;
+        font-size: 12px;
+        margin: 6px 0;
+    }
+
+    .title {
+        font-size: 20px;
+    }
+
+    .button {
+        width: 140px;
+        height: 40px;
+        font-size: 12px;
+    }
+
+    .otp-field {
+        width: 36px !important;
+        height: 44px !important;
+        font-size: 1rem !important;
+    }
+
+    .otp-inputs {
+        gap: 6px;
     }
 }

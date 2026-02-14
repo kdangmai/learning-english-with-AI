@@ -340,7 +340,7 @@ function AuthPage({ initialMode }) {
 
                         {loginError && <div className="error-text">{loginError}</div>}
 
-                        <a className="form__link" href="#">Forgot your password?</a>
+                        <button type="button" className="form__link" onClick={() => navigate('/forgot-password')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Forgo your password?</button>
                         <button className="form__button button submit" disabled={loginLoading}>
                             {loginLoading ? 'LOADING...' : 'SIGN IN'}
                         </button>

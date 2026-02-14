@@ -176,16 +176,22 @@ class EmailService {
     } catch (error) {
       // CRITICAL FALLBACK: Always log OTP to console so user can still test
       console.error('❌ Email sending failed:', error.message);
-      console.log('\n╔══════════════════════════════════════════════════╗');
-      console.log('║  🚨 EMAIL SENDING FAILED - CONSOLE FALLBACK     ║');
-      console.log('╠══════════════════════════════════════════════════╣');
-      console.log(`║  📬 To: ${email}`);
-      console.log(`║  👤 User: ${username}`);
-      console.log(`║  🔑 OTP Code: ${otpCode}`);
-      console.log('║                                                  ║');
-      console.log('║  ℹ️  Use this OTP to verify your account.        ║');
-      console.log('║  Fix SMTP settings in .env to enable real email. ║');
-      console.log('╚══════════════════════════════════════════════════╝\n');
+
+      // Only show full OTP in development for security
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('\n╔══════════════════════════════════════════════════╗');
+        console.log('║  🚨 EMAIL SENDING FAILED - CONSOLE FALLBACK     ║');
+        console.log('╠══════════════════════════════════════════════════╣');
+        console.log(`║  📬 To: ${email}`);
+        console.log(`║  👤 User: ${username}`);
+        console.log(`║  🔑 OTP Code: ${otpCode}`);
+        console.log('║                                                  ║');
+        console.log('║  ℹ️  Use this OTP to verify your account.        ║');
+        console.log('║  Fix SMTP settings in .env to enable real email. ║');
+        console.log('╚══════════════════════════════════════════════════╝\n');
+      } else {
+        console.log('⚠️ OTP email failed to send. Check server logs for details.');
+      }
 
       // Don't throw - let registration continue with OTP visible in console
       return { messageId: 'console-fallback-' + Date.now(), consoleFallback: true };

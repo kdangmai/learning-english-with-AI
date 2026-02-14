@@ -34,6 +34,8 @@ const userSchema = new mongoose.Schema({
   },
   emailVerificationToken: String,
   emailVerificationExpires: Date,
+  otpCode: String,
+  otpExpires: Date,
 
   // Learning statistics
   totalLearningTime: {
@@ -80,12 +82,21 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
+// Hash password and OTP before saving
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-
   try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    // Hash password if modified
+    if (this.isModified('password')) {
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(this.password, salt);
+    }
+
+    // Hash OTP if modified and present
+    if (this.isModified('otpCode') && this.otpCode) {
+      const salt = await bcrypt.genSalt(10);
+      this.otpCode = await bcrypt.hash(this.otpCode, salt);
+    }
+
     next();
   } catch (error) {
     next(error);
@@ -95,6 +106,11 @@ userSchema.pre('save', async function (next) {
 // Method to compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Method to verify OTP
+userSchema.methods.verifyOTP = async function (candidateOTP) {
+  return await bcrypt.compare(candidateOTP, this.otpCode);
 };
 
 module.exports = mongoose.model('User', userSchema);

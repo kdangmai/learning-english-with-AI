@@ -2,7 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
+const path = require('path');
 const connectDB = require('./config/database');
+
+// Load .env from project root (parent of backend/)
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+// Also try loading from backend/ directory if exists
 require('dotenv').config();
 
 const app = express();

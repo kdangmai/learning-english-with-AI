@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import './Vocabulary.css';
 
@@ -19,7 +18,7 @@ function useDebounce(value, delay) {
 }
 
 export function Vocabulary() {
-  const navigate = useNavigate();
+
   const { success, error, warning, info } = useToast();
   const [activeTab, setActiveTab] = useState('topics');
   const [libraryTab, setLibraryTab] = useState('all');

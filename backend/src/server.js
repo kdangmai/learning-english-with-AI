@@ -26,7 +26,7 @@ app.use(compression({
     return compression.filter(req, res);
   }
 }));
-// CORS — allow multiple origins (production + local dev)
+// CORS — allow production domains + local dev
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:3000',
@@ -37,7 +37,12 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, curl, Postman, etc.)
     if (!origin) return callback(null, true);
+    // Allow explicit origins
     if (allowedOrigins.some(allowed => origin.startsWith(allowed))) {
+      return callback(null, true);
+    }
+    // Allow any Vercel or Render deployment
+    if (origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com')) {
       return callback(null, true);
     }
     callback(new Error('Not allowed by CORS'));

@@ -843,3 +843,93 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 480px) {
+  .sentence-page {
+    padding: 10px 6px;
+  }
+
+  .sentence-header h1 {
+    font-size: 1.15rem;
+  }
+
+  .sentence-header {
+    padding: 12px 14px;
+    border-radius: 12px;
+  }
+
+  .settings-panel {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .level-pills {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .prompt-card,
+  .input-card,
+  .hints-card,
+  .feedback-card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .vietnamese-text {
+    font-size: 1rem;
+  }
+
+  .translation-input {
+    min-height: 80px;
+    font-size: 0.95rem;
+  }
+
+  .input-footer {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .submit-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .feedback-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .feedback-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .generate-btn {
+    padding: 12px;
+    font-size: 0.88rem;
+    border-radius: 12px;
+  }
+
+  .score-badge {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+  }
+
+  .score-val {
+    font-size: 1.4rem;
+  }
+
+  .diff-card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .change-row {
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 0.85rem;
+  }
+}

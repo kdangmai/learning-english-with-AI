@@ -774,3 +774,71 @@
         text-align: center;
     }
 }
+
+@media (max-width: 480px) {
+    .pronunciation-page {
+        padding: 10px 6px;
+    }
+
+    .pron-header h1 {
+        font-size: 1.15rem;
+    }
+
+    .pron-header {
+        padding: 12px 14px;
+        border-radius: 12px;
+    }
+
+    .pron-settings-panel {
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    .pron-level-pills {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .pron-target-card {
+        padding: 20px 16px;
+        border-radius: 14px;
+    }
+
+    .pron-target-text {
+        font-size: 1.1rem;
+    }
+
+    .pron-target-actions {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .pron-record-btn {
+        padding: 12px 28px;
+        font-size: 0.95rem;
+    }
+
+    .pron-analysis {
+        padding: 18px 16px;
+        border-radius: 14px;
+    }
+
+    .pron-score-circle {
+        width: 70px;
+        height: 70px;
+    }
+
+    .pron-score-value {
+        font-size: 1.6rem;
+    }
+
+    .pron-analysis-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .pron-generate-btn {
+        padding: 12px;
+        border-radius: 12px;
+        font-size: 0.88rem;
+    }
+}

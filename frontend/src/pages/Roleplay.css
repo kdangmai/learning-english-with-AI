@@ -866,3 +866,86 @@
         margin: 0;
     }
 }
+
+@media (max-width: 480px) {
+    .roleplay-page {
+        padding: 10px 6px;
+    }
+
+    .roleplay-header h1 {
+        font-size: 1.15rem;
+    }
+
+    .scenarios-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .scenario-card {
+        padding: 16px 14px;
+        border-radius: 14px;
+    }
+
+    .scenario-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 1.4rem;
+        border-radius: 12px;
+    }
+
+    .scenario-title {
+        font-size: 0.88rem;
+    }
+
+    .scenario-desc {
+        font-size: 0.78rem;
+    }
+
+    .message-bubble {
+        padding: 8px 12px;
+        font-size: 0.88rem;
+        border-radius: 14px;
+    }
+
+    .message-row {
+        max-width: 92%;
+    }
+
+    .input-area {
+        padding: 8px 10px;
+        gap: 6px;
+    }
+
+    .input-area input {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+
+    .report-container {
+        padding: 18px 14px;
+        border-radius: 16px;
+    }
+
+    .score-circle {
+        width: 110px;
+        height: 110px;
+    }
+
+    .score-circle::before {
+        width: 88px;
+        height: 88px;
+    }
+
+    .score-value {
+        font-size: 2.4rem;
+    }
+
+    .report-grid {
+        gap: 12px;
+    }
+
+    .report-card {
+        padding: 16px;
+        border-radius: 12px;
+    }
+}

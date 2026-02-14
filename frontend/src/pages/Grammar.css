@@ -1264,7 +1264,78 @@
 }
 
 @media (max-width: 480px) {
+  .grammar-page {
+    padding: 12px 8px;
+  }
+
+  .grammar-header h1 {
+    font-size: 1.15rem;
+  }
+
   .tense-cards-row {
     grid-template-columns: 1fr;
+  }
+
+  .tense-card {
+    padding: 10px 12px;
+  }
+
+  .tense-card-name {
+    font-size: 0.78rem;
+  }
+
+  .grammar-container.full-height {
+    border-radius: 12px;
+  }
+
+  .theory-column,
+  .exercise-column {
+    padding: 14px;
+  }
+
+  .question-text {
+    font-size: 0.95rem;
+  }
+
+  .option-btn {
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    border-radius: 10px;
+  }
+
+  .option-key {
+    width: 26px;
+    height: 26px;
+    font-size: 0.78rem;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .completion-modal {
+    padding: 24px 20px;
+    border-radius: 18px;
+  }
+
+  .completion-title {
+    font-size: 1.4rem;
+  }
+
+  .word-chip {
+    padding: 6px 12px;
+    font-size: 0.82rem;
+  }
+
+  .fill-input {
+    font-size: 0.95rem;
+    min-width: 70px;
+  }
+
+  .rewrite-input {
+    font-size: 0.9rem;
+    min-height: 70px;
+    padding: 10px 12px;
   }
 }

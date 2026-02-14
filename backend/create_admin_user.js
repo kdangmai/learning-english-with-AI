@@ -12,6 +12,7 @@ const createAdmin = async () => {
             email: 'admin@learnenglish.ai',
             password: 'admin123',
             fullName: 'Super Administrator',
+            role: 'admin',
             isEmailVerified: true,
             currentLevel: 'expert'
         };
@@ -19,11 +20,10 @@ const createAdmin = async () => {
         let user = await User.findOne({ $or: [{ username: adminData.username }, { email: adminData.email }] });
 
         if (user) {
-            console.log('Admin user found. Updating privileges...');
-            user.username = adminData.username;
-            user.email = adminData.email;
+            console.log('Admin user found. Updating privileges (Password NOT changed)...');
+            // Only update fields that are not password
+            user.role = 'admin';
             user.isEmailVerified = true;
-            user.password = adminData.password; // Will be hashed by pre-save hook
             await user.save();
         } else {
             console.log('Creating new admin user...');

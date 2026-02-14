@@ -321,6 +321,10 @@ function AuthPage({ initialMode }) {
                         <button className="form__button button submit" disabled={regLoading}>
                             {regLoading ? 'PROCESSING...' : 'SIGN UP'}
                         </button>
+
+                        <div className="mobile-toggle" onClick={toggleSwitch}>
+                            Running out of ideas? <span className="toggle-link">Sign In</span>
+                        </div>
                     </form>
                 </div>
 
@@ -344,6 +348,10 @@ function AuthPage({ initialMode }) {
                         <button className="form__button button submit" disabled={loginLoading}>
                             {loginLoading ? 'LOADING...' : 'SIGN IN'}
                         </button>
+
+                        <div className="mobile-toggle" onClick={toggleSwitch}>
+                            New here? <span className="toggle-link">Create Account</span>
+                        </div>
                     </form>
                 </div>
 

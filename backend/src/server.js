@@ -13,6 +13,9 @@ require('dotenv').config();
 
 const app = express();
 
+// Trust proxy — required for Render/Vercel (behind reverse proxy)
+// Enables correct client IP detection for rate limiting
+app.set('trust proxy', 1);
 // Connect to database
 connectDB();
 

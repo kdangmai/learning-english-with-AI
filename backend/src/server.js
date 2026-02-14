@@ -6,10 +6,16 @@ const path = require('path');
 const connectDB = require('./config/database');
 const logger = require('./services/loggerService');
 
-// Load .env from project root (parent of backend/)
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
-// Also try loading from backend/ directory if exists
-require('dotenv').config();
+// Load environment variables
+// In Docker/Render: env vars are injected by the platform
+// Locally: load from .env files
+require('dotenv').config({ path: path.join(__dirname, '../.env') }); // backend/.env
+require('dotenv').config({ path: path.join(__dirname, '../../.env') }); // root/.env
+require('dotenv').config(); // cwd/.env
+
+// Debug: verify critical env vars are loaded
+console.log('[ENV Check] JWT_SECRET:', process.env.JWT_SECRET ? `SET (${process.env.JWT_SECRET.length} chars)` : '❌ NOT SET');
+console.log('[ENV Check] MONGODB_URI:', process.env.MONGODB_URI ? 'SET' : '❌ NOT SET');
 
 const app = express();
 

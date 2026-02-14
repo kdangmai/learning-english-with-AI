@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "postinstall": "node create_admin_user.js"
+    "postinstall": "node create_admin_user.js || echo 'Admin setup skipped (file not available yet)'"
   },
   "keywords": [
     "english",

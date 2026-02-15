@@ -25,18 +25,19 @@ class EmailService {
       // Create transporter WITHOUT verify() — verify blocks for 30s+ on
       // networks that firewall outbound SMTP. We'll discover failures only
       // when we actually try to send, which has its own timeout handling.
-      this.transporter = nodemailer.createTransport(isGmail ? {
-        service: 'gmail',
+
+      // Use explicit configuration to allow port 465 (SSL) or 587 (TLS)
+      // This bypasses 'service: gmail' which might force port 587
+      const port = Number(process.env.SMTP_PORT) || 465; // Default to 465 (SSL)
+      this.transporter = nodemailer.createTransport({
+        host: host,
+        port: port,
+        secure: port === 465, // true for 465, false for other ports
         auth: { user: smtpUser, pass: smtpPass },
-        pool: true,
-        maxConnections: 3,
-        tls: { rejectUnauthorized: false }
-      } : {
-        host,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: false,
-        auth: { user: smtpUser, pass: smtpPass },
-        tls: { rejectUnauthorized: false }
+        tls: { rejectUnauthorized: false },
+        // Connection timeout settings
+        connectionTimeout: 10000, // 10s
+        socketTimeout: 10000 // 10s
       });
 
       this.isEthereal = false;

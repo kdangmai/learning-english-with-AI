@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
 import './Vocabulary.css';
 
@@ -16,6 +16,29 @@ function useDebounce(value, delay) {
   }, [value, delay]);
   return debouncedValue;
 }
+
+const VOCAB_SUGGESTED_TOPICS = [
+  { label: 'Travel', icon: '✈️' },
+  { label: 'Technology', icon: '💻' },
+  { label: 'Daily Life', icon: '☀️' },
+  { label: 'Food & Cooking', icon: '🍜' },
+  { label: 'Environment', icon: '🌿' },
+  { label: 'Education', icon: '📚' },
+  { label: 'Business', icon: '💼' },
+  { label: 'Hobbies', icon: '🎨' },
+  { label: 'Health & Fitness', icon: '💪' },
+  { label: 'Entertainment', icon: '🎬' },
+  { label: 'Sports', icon: '⚽' },
+  { label: 'Family & Friends', icon: '👨‍👩‍👧‍👦' },
+  { label: 'Shopping', icon: '🛒' },
+  { label: 'Weather & Nature', icon: '🌤️' },
+  { label: 'Culture & History', icon: '🏛️' },
+  { label: 'Jobs & Careers', icon: '👔' },
+  { label: 'Science', icon: '🔬' },
+  { label: 'Social Media', icon: '📱' },
+  { label: 'Music', icon: '🎵' },
+  { label: 'Animals & Pets', icon: '🐾' },
+];
 
 export function Vocabulary() {
 
@@ -71,10 +94,14 @@ export function Vocabulary() {
   const [matchStartTime, setMatchStartTime] = useState(null);
   const [shuffledEn, setShuffledEn] = useState([]);
   const [shuffledVi, setShuffledVi] = useState([]);
+  const matchQueueRef = useRef([]);
+  const [fadingIds, setFadingIds] = useState(new Set());
   const [matchLoadingGame, setMatchLoadingGame] = useState(false);
   const [floatingScores, setFloatingScores] = useState([]);
   const [confettiPieces, setConfettiPieces] = useState([]);
   const [matchSrsReviewed, setMatchSrsReviewed] = useState(0);
+  const pendingReviewsRef = useRef([]); // Batch reviews
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -140,6 +167,39 @@ export function Vocabulary() {
     }
   }, [activeTab, fetchLibraryWords]);
 
+  // Exit confirmation handled globally in App.js MainLayout
+
+  const handleExitSession = () => {
+    if (window.confirm("Kết thúc phiên học? Tiến trình (các từ đã học) CHƯA ĐƯỢC LƯU nếu bạn thoát ngay bây giờ.")) {
+      pendingReviewsRef.current = []; // Clear pending reviews (labels as 'not refreshed')
+      setIsLearning(false);
+      setFlashcards([]);
+      setCustomTopic('');
+    }
+  };
+
+  const handleExitGame = () => {
+    if (matchGameComplete || window.confirm("Dừng chơi? Điểm số hiện tại sẽ mất.")) {
+      setMatchGameActive(false);
+      setMatchGameComplete(false);
+    }
+  };
+
+  const saveSessionProgress = async () => {
+    if (pendingReviewsRef.current.length === 0) return;
+    setIsProcessing(true);
+    try {
+      // Send all reviews in parallel
+      await Promise.all(pendingReviewsRef.current.map(r => vocabularyAPI.reviewWord(r)));
+      pendingReviewsRef.current = [];
+    } catch (err) {
+      console.error("Save progress error", err);
+      // Optional: alert user or retry
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleSpeak = (text, accent = null) => {
     if (!window.speechSynthesis) {
       warning("Trình duyệt không hỗ trợ phát âm.");
@@ -204,6 +264,7 @@ export function Vocabulary() {
         setCurrentCardIndex(0);
         setFlipped(false);
         setSessionResults({ again: 0, hard: 0, good: 0, easy: 0 });
+        pendingReviewsRef.current = []; // Reset pending
         setIsLearning(true);
         // Fetch intervals for the first card
         if (data.words?.[0]?._id) {
@@ -230,6 +291,7 @@ export function Vocabulary() {
         setCurrentCardIndex(0);
         setFlipped(false);
         setSessionResults({ again: 0, hard: 0, good: 0, easy: 0 });
+        pendingReviewsRef.current = []; // Reset pending
         setIsLearning(true);
         success(`Bắt đầu ôn tập ${data.flashcards.length} từ!`);
         // Fetch intervals for the first card
@@ -247,34 +309,31 @@ export function Vocabulary() {
     }
   };
 
-  // SRS Action Handler
+  // SRS Action Handler (Batched)
   const handleSRSAction = async (rating) => {
     const card = flashcards[currentCardIndex];
     if (!card) return;
 
     setSessionResults(prev => ({ ...prev, [rating]: (prev[rating] || 0) + 1 }));
 
-    try {
-      const response = await vocabularyAPI.reviewWord({ wordId: card._id, rating });
-      await response.data; // Wait for completion
+    // Add to pending reviews
+    pendingReviewsRef.current.push({ wordId: card._id, rating });
 
-      if (currentCardIndex < flashcards.length - 1) {
-        const nextIndex = currentCardIndex + 1;
-        const nextCard = flashcards[nextIndex];
-        setFlipped(false);
-        setTimeout(() => {
-          setCurrentCardIndex(nextIndex);
-          // Fetch accurate intervals for next card from backend
-          if (nextCard?._id) {
-            fetchCardIntervals(nextCard._id);
-          }
-        }, 120);
-      } else {
-        setShowCompletionModal(true);
-        fetchSrsStats();
-      }
-    } catch (err) {
-      console.error("SRS Error", err);
+    if (currentCardIndex < flashcards.length - 1) {
+      const nextIndex = currentCardIndex + 1;
+      const nextCard = flashcards[nextIndex];
+      setFlipped(false);
+      setTimeout(() => {
+        setCurrentCardIndex(nextIndex);
+        if (nextCard?._id) {
+          fetchCardIntervals(nextCard._id);
+        }
+      }, 120);
+    } else {
+      // Finish session
+      await saveSessionProgress();
+      setShowCompletionModal(true);
+      fetchSrsStats();
     }
   };
 
@@ -555,6 +614,25 @@ export function Vocabulary() {
     setTimeout(() => setConfettiPieces([]), 4000);
   };
 
+  const playMatchSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(500, audioCtx.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.1);
+    } catch (e) {
+      // Ignore audio errors
+    }
+  };
+
   const startMatchGame = async () => {
     setMatchLoadingGame(true);
     try {
@@ -563,9 +641,16 @@ export function Vocabulary() {
       if (data.success && data.words.length >= 3) {
         const words = data.words;
         setMatchWords(words);
-        setShuffledEn([...words].sort(() => Math.random() - 0.5));
-        setShuffledVi([...words].sort(() => Math.random() - 0.5));
+
+        // Initialize Queue and Active Sets (Max 4)
+        const initialBatch = words.slice(0, 4);
+        matchQueueRef.current = words.slice(4);
+
+        setShuffledEn([...initialBatch].sort(() => Math.random() - 0.5));
+        setShuffledVi([...initialBatch].sort(() => Math.random() - 0.5));
+
         setMatchedPairs(new Set());
+        setFadingIds(new Set());
         setMatchSelected({ en: null, vi: null });
         setMatchWrong({ en: null, vi: null });
         setMatchScore(0);
@@ -618,13 +703,56 @@ export function Vocabulary() {
         setMatchedPairs(newMatched);
         setMatchSelected({ en: null, vi: null });
 
-        // Check if game complete
+        // Check if game completely finished
         if (newMatched.size === matchWords.length) {
-          setMatchGameComplete(true);
-          const totalTime = Math.round((Date.now() - matchStartTime) / 1000);
-          setMatchTimer(totalTime);
-          spawnConfetti();
-          fetchSrsStats(); // Refresh SRS stats after game
+          setFadingIds(prev => new Set(prev).add(newSelection.en._id));
+          playMatchSound();
+          setTimeout(() => {
+            setMatchGameComplete(true);
+            const totalTime = Math.round((Date.now() - matchStartTime) / 1000);
+            setMatchTimer(totalTime);
+            spawnConfetti();
+            fetchSrsStats();
+          }, 600);
+        } else {
+          // Not finished? Fade out and replace
+          const matchedId = newSelection.en._id;
+          setFadingIds(prev => new Set(prev).add(matchedId));
+          playMatchSound();
+
+          setTimeout(() => {
+            // Logic to replace the card
+            const nextWord = matchQueueRef.current.length > 0 ? matchQueueRef.current[0] : null;
+            if (nextWord) {
+              matchQueueRef.current = matchQueueRef.current.slice(1);
+            }
+
+            setShuffledEn(prev => {
+              const arr = [...prev];
+              const idx = arr.findIndex(w => w._id === matchedId);
+              if (idx !== -1) {
+                if (nextWord) arr[idx] = nextWord;
+                else arr.splice(idx, 1);
+              }
+              return arr;
+            });
+
+            setShuffledVi(prev => {
+              const arr = [...prev];
+              const idx = arr.findIndex(w => w._id === matchedId);
+              if (idx !== -1) {
+                if (nextWord) arr[idx] = nextWord;
+                else arr.splice(idx, 1);
+              }
+              return arr;
+            });
+
+            setFadingIds(prev => {
+              const next = new Set(prev);
+              next.delete(matchedId);
+              return next;
+            });
+          }, 500);
         }
       } else {
         // ❌ Wrong match
@@ -758,15 +886,33 @@ export function Vocabulary() {
             </div>
 
             <div className="custom-topic-section">
-              <h3>Nhập chủ đề bạn muốn học:</h3>
-              <input
-                type="text"
-                className="custom-topic-input"
-                placeholder="Ví dụ: Space exploration, Football, Technology..."
-                value={customTopic}
-                onChange={(e) => setCustomTopic(e.target.value)}
-                autoFocus
-              />
+              <h3>🏷️ Chủ đề bạn muốn học:</h3>
+              <div className="vocab-topic-row">
+                <div className="vocab-topic-input-wrapper">
+                  <span className="vocab-search-icon">🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Nhập chủ đề..."
+                    value={customTopic}
+                    onChange={(e) => setCustomTopic(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="vocab-topic-select-wrapper">
+                  <select
+                    className="vocab-topic-select"
+                    value={customTopic}
+                    onChange={(e) => setCustomTopic(e.target.value)}
+                  >
+                    <option value="">-- Chọn chủ đề --</option>
+                    {VOCAB_SUGGESTED_TOPICS.map((t) => (
+                      <option key={t.label} value={t.label}>
+                        {t.icon} {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             <div className="action-area">
@@ -793,9 +939,7 @@ export function Vocabulary() {
         {isLearning && flashcards.length > 0 && currentCard && (
           <div className="flashcard-session">
             <div className="session-header">
-              <button className="back-btn" onClick={() => { setIsLearning(false); setFlashcards([]); }}>
-                ← Quay lại
-              </button>
+              <button className="back-btn" onClick={handleExitSession}>← Kết thúc</button>
               <div className="progress-indicator">
                 <div className="progress-bar-track">
                   <div
@@ -872,22 +1016,22 @@ export function Vocabulary() {
 
             {/* SRS CONTROLS */}
             <div className="controls srs-controls">
-              <button disabled={loading} className="btn-srs again" onClick={() => handleSRSAction('again')}>
+              <button disabled={loading || isProcessing} className="btn-srs again" onClick={() => handleSRSAction('again')}>
                 <span className="srs-emoji">🔁</span>
                 <span className="srs-label">Quên</span>
                 <span className="srs-time">{intervals.again}</span>
               </button>
-              <button disabled={loading} className="btn-srs hard" onClick={() => handleSRSAction('hard')}>
+              <button disabled={loading || isProcessing} className="btn-srs hard" onClick={() => handleSRSAction('hard')}>
                 <span className="srs-emoji">😓</span>
                 <span className="srs-label">Khó</span>
                 <span className="srs-time">{intervals.hard}</span>
               </button>
-              <button disabled={loading} className="btn-srs good" onClick={() => handleSRSAction('good')}>
+              <button disabled={loading || isProcessing} className="btn-srs good" onClick={() => handleSRSAction('good')}>
                 <span className="srs-emoji">👍</span>
                 <span className="srs-label">Tốt</span>
                 <span className="srs-time">{intervals.good}</span>
               </button>
-              <button disabled={loading} className="btn-srs easy" onClick={() => handleSRSAction('easy')}>
+              <button disabled={loading || isProcessing} className="btn-srs easy" onClick={() => handleSRSAction('easy')}>
                 <span className="srs-emoji">😎</span>
                 <span className="srs-label">Dễ</span>
                 <span className="srs-time">{intervals.easy}</span>
@@ -1196,7 +1340,7 @@ export function Vocabulary() {
         {activeTab === 'match' && matchGameActive && !matchGameComplete && (
           <div className="match-game-board">
             <div className="match-game-header">
-              <button className="back-btn" onClick={() => { setMatchGameActive(false); setMatchGameComplete(false); }}>← Quay lại</button>
+              <button className="back-btn" onClick={handleExitGame}>← Quay lại</button>
               <div className="match-hud">
                 <div className="hud-item score">
                   <span className="hud-icon">⭐</span>
@@ -1244,12 +1388,13 @@ export function Vocabulary() {
                   const isMatched = matchedPairs.has(w._id);
                   const isSelected = matchSelected.en?._id === w._id;
                   const isWrong = matchWrong.en?._id === w._id;
+                  const isFading = fadingIds.has(w._id);
                   return (
                     <button
                       key={`en-${w._id}`}
-                      className={`match-word-btn ${isMatched ? 'matched' : ''} ${isSelected ? 'selected' : ''} ${isWrong ? 'wrong' : ''}`}
-                      onClick={() => !isMatched && handleMatchSelect('en', w)}
-                      disabled={isMatched}
+                      className={`match-word-btn ${isMatched ? 'matched' : ''} ${isSelected ? 'selected' : ''} ${isWrong ? 'wrong' : ''} ${isFading ? 'fading-out' : ''}`}
+                      onClick={() => !isMatched && !isFading && handleMatchSelect('en', w)}
+                      disabled={isMatched || isFading}
                     >
                       <span className="match-word-text">{w.word}</span>
                       {w.partOfSpeech && <span className="match-word-pos">({w.partOfSpeech})</span>}
@@ -1266,12 +1411,13 @@ export function Vocabulary() {
                   const isMatched = matchedPairs.has(w._id);
                   const isSelected = matchSelected.vi?._id === w._id;
                   const isWrong = matchWrong.vi?._id === w._id;
+                  const isFading = fadingIds.has(w._id);
                   return (
                     <button
                       key={`vi-${w._id}`}
-                      className={`match-word-btn vi ${isMatched ? 'matched' : ''} ${isSelected ? 'selected' : ''} ${isWrong ? 'wrong' : ''}`}
-                      onClick={() => !isMatched && handleMatchSelect('vi', w)}
-                      disabled={isMatched}
+                      className={`match-word-btn vi ${isMatched ? 'matched' : ''} ${isSelected ? 'selected' : ''} ${isWrong ? 'wrong' : ''} ${isFading ? 'fading-out' : ''}`}
+                      onClick={() => !isMatched && !isFading && handleMatchSelect('vi', w)}
+                      disabled={isMatched || isFading}
                     >
                       <span className="match-word-text">{w.meaning}</span>
                       {isMatched && <span className="match-check">✓</span>}

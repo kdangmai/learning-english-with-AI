@@ -1,78 +1,73 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
+// Prioritize backend/.env (local overrides) - Force override to ensure backend settings win
+require('dotenv').config({ path: path.join(__dirname, '../../.env'), override: true });
+// Fallback to root .env (do not override existing backend settings)
 require('dotenv').config({ path: path.join(__dirname, '../../../.env') });
-require('dotenv').config();
 
 class EmailService {
   static transporter = null;
   static isEthereal = false;
 
   static async getTransporter() {
-    if (!this.transporter) {
-      const smtpUser = process.env.SMTP_USER;
-      const smtpPass = process.env.SMTP_PASS;
+    if (this.transporter) return this.transporter;
 
-      // Check if real SMTP credentials are provided
-      if (smtpUser && smtpPass && smtpUser !== '' && smtpPass !== '') {
-        console.log('📧 SMTP Config (Gmail):', {
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: Number(process.env.SMTP_PORT) || 587,
-          user: smtpUser,
-          passLength: smtpPass.length
-        });
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
 
-        this.transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: Number(process.env.SMTP_PORT) || 587,
-          secure: false,
-          auth: {
-            user: smtpUser,
-            pass: smtpPass
-          }
-        });
+    // Try real SMTP if credentials exist
+    if (smtpUser && smtpPass) {
+      const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+      const isGmail = host.includes('gmail.com');
 
-        // Verify connection
-        try {
-          await this.transporter.verify();
-          console.log('✅ SMTP connection verified successfully!');
-          this.isEthereal = false;
-        } catch (verifyError) {
-          console.warn('⚠️ Gmail SMTP verification failed:', verifyError.message);
-          console.warn('→ Falling back to Ethereal test email...');
-          this.transporter = null; // Reset to trigger Ethereal fallback
-        }
-      }
+      console.log(`📧 Creating SMTP transporter (${isGmail ? 'Gmail' : host})...`);
 
-      // Fallback: Use Ethereal test email (free, no real email sent)
-      if (!this.transporter) {
-        try {
-          const testAccount = await nodemailer.createTestAccount();
-          console.log('📧 Using Ethereal test email (no real email sent)');
-          console.log('   Ethereal user:', testAccount.user);
+      // Create transporter WITHOUT verify() — verify blocks for 30s+ on
+      // networks that firewall outbound SMTP. We'll discover failures only
+      // when we actually try to send, which has its own timeout handling.
+      this.transporter = nodemailer.createTransport(isGmail ? {
+        service: 'gmail',
+        auth: { user: smtpUser, pass: smtpPass },
+        pool: true,
+        maxConnections: 3,
+        tls: { rejectUnauthorized: false }
+      } : {
+        host,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: false,
+        auth: { user: smtpUser, pass: smtpPass },
+        tls: { rejectUnauthorized: false }
+      });
 
-          this.transporter = nodemailer.createTransport({
-            host: 'smtp.ethereal.email',
-            port: 587,
-            secure: false,
-            auth: {
-              user: testAccount.user,
-              pass: testAccount.pass
-            }
-          });
-          this.isEthereal = true;
-        } catch (etherealError) {
-          console.error('❌ Ethereal fallback also failed:', etherealError.message);
-          // Create a dummy transporter that will just log
-          this.transporter = {
-            sendMail: async (options) => {
-              console.log('📬 [DUMMY MAIL] Would send to:', options.to);
-              return { messageId: 'dummy-' + Date.now() };
-            }
-          };
-          this.isEthereal = true;
-        }
-      }
+      this.isEthereal = false;
+      console.log('✅ SMTP transporter created (will connect on first send)');
+      return this.transporter;
     }
+
+    // No SMTP credentials — use Ethereal test email
+    try {
+      const testAccount = await nodemailer.createTestAccount();
+      console.log('📧 Using Ethereal test email (no real email sent)');
+      console.log('   Ethereal user:', testAccount.user);
+
+      this.transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
+        auth: { user: testAccount.user, pass: testAccount.pass }
+      });
+      this.isEthereal = true;
+    } catch (etherealError) {
+      console.error('❌ Ethereal fallback also failed:', etherealError.message);
+      this.transporter = {
+        sendMail: async (options) => {
+          console.log('📬 [DUMMY MAIL] Would send to:', options.to);
+          return { messageId: 'dummy-' + Date.now() };
+        }
+      };
+      this.isEthereal = true;
+    }
+
     return this.transporter;
   }
 

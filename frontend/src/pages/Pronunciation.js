@@ -24,8 +24,6 @@ export default function Pronunciation() {
     const [generating, setGenerating] = useState(false);
     const [sessionCount, setSessionCount] = useState(0);
 
-    const recognitionRef = useRef(null);
-    const transcriptRef = useRef('');
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
 

@@ -26,18 +26,28 @@ class EmailService {
       // networks that firewall outbound SMTP. We'll discover failures only
       // when we actually try to send, which has its own timeout handling.
 
-      // Use explicit configuration to allow port 465 (SSL) or 587 (TLS)
-      // This bypasses 'service: gmail' which might force port 587
-      const port = Number(process.env.SMTP_PORT) || 465; // Default to 465 (SSL)
+
+      // Smart configuration for Gmail to avoid common production timeouts
+      let port = Number(process.env.SMTP_PORT) || 465;
+      let secure = port === 465;
+
+      // FORCE Port 465 (SSL) for Gmail on Production if not explicitly overridden to something else specific
+      // This fixes issues where Production ENV has PORT=587 but firewall blocks it
+      if (isGmail && port === 587) {
+        console.log('⚠️ Detect Gmail with Port 587 - Auto-switching to Port 465 (SSL) for better reliability...');
+        port = 465;
+        secure = true;
+      }
+
       this.transporter = nodemailer.createTransport({
         host: host,
         port: port,
-        secure: port === 465, // true for 465, false for other ports
+        secure: secure,
         auth: { user: smtpUser, pass: smtpPass },
         tls: { rejectUnauthorized: false },
-        // Connection timeout settings
-        connectionTimeout: 10000, // 10s
-        socketTimeout: 10000 // 10s
+        // Aggressive timeouts to fail fast if blocked
+        connectionTimeout: 10000,
+        socketTimeout: 10000
       });
 
       this.isEthereal = false;
@@ -150,6 +160,8 @@ class EmailService {
         html: this.buildOTPEmailHTML(otpCode, username)
       };
 
+      console.log(`🚀 Sending OTP to: ${email} via ${transporter.options.host}:${transporter.options.port} (Secure: ${transporter.options.secure})`);
+
       const result = await transporter.sendMail(mailOptions);
 
       // If using Ethereal, show preview URL
@@ -165,7 +177,9 @@ class EmailService {
         }
         console.log('╚══════════════════════════════════════════════════╝\n');
       } else {
-        console.log(`✅ OTP email sent to: ${email}`);
+        console.log(`✅ OTP email SENT SUCCESSFULLY to: ${email}`);
+        console.log(`   Message ID: ${result.messageId}`);
+        console.log(`   Response: ${result.response}`);
       }
 
       return result;

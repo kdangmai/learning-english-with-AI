@@ -54,6 +54,16 @@ function MainLayout() {
     setSidebarOpen(false);
   }, [location]);
 
+  // Global Focus Page — confirm before reload/close
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = 'Bạn có chắc muốn rời trang? Dữ liệu chưa lưu có thể bị mất.';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   if (!isAuthenticated) {
     return (
       <Routes>
@@ -98,6 +108,13 @@ function MainLayout() {
       )}
 
       <div className="main-wrapper">
+        {/* Overlay to close sidebar on outside click */}
+        {sidebarOpen && (
+          <div
+            className="sidebar-overlay"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         <nav className={`navbar sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
           {/* Sidebar Brand */}
           <div className="sidebar-header">

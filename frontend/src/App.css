@@ -155,6 +155,29 @@ body,
 }
 
 /* ======================================
+   SIDEBAR OVERLAY — click outside to close
+   ====================================== */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 39;
+  /* just below sidebar z-index: 40 */
+  cursor: pointer;
+  animation: overlayFadeIn 0.25s ease;
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* ======================================
    SIDEBAR - Premium Design
    ====================================== */
 .navbar.sidebar {
@@ -537,8 +560,16 @@ select {
 
 /* ====== Responsive ====== */
 @media (max-width: 768px) {
+  .App-header {
+    padding: 10px 16px;
+  }
+
   .App-header h1 {
-    font-size: 1.1rem;
+    font-size: 1rem;
+  }
+
+  .App-header::before {
+    height: 2px;
   }
 
   .navbar.sidebar {
@@ -546,9 +577,108 @@ select {
     height: 100%;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
     z-index: 100;
+    width: 260px;
+  }
+
+  .navbar.sidebar.closed {
+    transform: translateX(-260px);
+    margin-right: -260px;
+  }
+
+  .sidebar-header {
+    padding: 12px 14px;
+  }
+
+  .sidebar-user-section {
+    padding: 10px 14px;
+  }
+
+  .sidebar-nav {
+    padding: 6px 8px;
+  }
+
+  .nav-link {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+
+  .sidebar-footer {
+    padding: 8px 10px 12px;
+  }
+
+  .logout-btn {
+    padding: 8px 12px;
+    font-size: 0.78rem;
   }
 
   .sidebar-toggle-floating.closed-only {
     bottom: 16px;
+  }
+
+  .sidebar-toggle-floating {
+    width: 36px;
+    height: 36px;
+    font-size: 0.85rem;
+  }
+
+  .container {
+    padding: 16px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .App-header {
+    padding: 8px 12px;
+  }
+
+  .App-header h1 {
+    font-size: 0.92rem;
+  }
+
+  .navbar.sidebar {
+    width: 240px;
+  }
+
+  .navbar.sidebar.closed {
+    transform: translateX(-240px);
+    margin-right: -240px;
+  }
+
+  .brand-text {
+    font-size: 1rem;
+  }
+
+  .brand-icon {
+    font-size: 1.2rem;
+    width: 30px;
+    height: 30px;
+  }
+
+  .sidebar-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 0.82rem;
+  }
+
+  .sidebar-toggle-floating {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px !important;
+    font-size: 0.8rem;
+  }
+
+  .container {
+    padding: 12px 8px;
+  }
+}
+
+/* Safe area for iOS notch */
+@supports (padding: max(0px)) {
+  .App-header {
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+
+  .sidebar-footer {
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
   }
 }

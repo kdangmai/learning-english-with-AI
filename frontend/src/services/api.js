@@ -34,33 +34,9 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Request deduplication for GET requests (prevents duplicate fetches during rapid re-mounts)
-const pendingRequests = new Map();
+// Request deduplication removed to prevent false positive CanceledErrors
+// React StrictMode or rapid navigation can trigger legitimate parallel requests.
 
-apiClient.interceptors.request.use((config) => {
-  if (config.method === 'get') {
-    const key = config.url + JSON.stringify(config.params || {});
-    if (pendingRequests.has(key)) {
-      // Already in-flight - cancel this duplicate
-      const controller = new AbortController();
-      config.signal = controller.signal;
-      controller.abort('Duplicate request cancelled');
-    } else {
-      config._dedupKey = key;
-      pendingRequests.set(key, Date.now());
-      // Auto-cleanup after 2s to prevent stale entries
-      setTimeout(() => pendingRequests.delete(key), 2000);
-    }
-  }
-  return config;
-});
-
-apiClient.interceptors.response.use((response) => {
-  if (response.config._dedupKey) {
-    pendingRequests.delete(response.config._dedupKey);
-  }
-  return response;
-});
 
 // Auth endpoints
 export const authAPI = {
@@ -99,13 +75,13 @@ export const vocabularyAPI = {
   getWordsByStatus: (status) => apiClient.get(`/vocabulary/by-status/${status}`),
   addWord: (data) => apiClient.post('/vocabulary/add', data),
   updateWord: (wordId, data) => apiClient.put(`/vocabulary/${wordId}`, data),
-  reviewWord: (data) => apiClient.post('/vocabulary/review', data),
+  reviewWord: (data) => apiClient.post('/vocabulary/srs-review', data),
 
   // Flashcards & SRS
   getFlashcards: (params) => apiClient.get('/vocabulary/flashcards', { params }), // supports ?limit=20
   generateFlashcards: (topic) => apiClient.post('/vocabulary/generate-flashcards', { topic }),
   getSRSStats: () => apiClient.get('/vocabulary/srs-stats'),
-  getSRSReview: () => apiClient.get('/vocabulary/srs-review'),
+  // Removed incorrect getSRSReview GET endpoint
   getIntervals: (wordId) => apiClient.get(`/vocabulary/intervals/${wordId}`),
 
   // Learning & Games

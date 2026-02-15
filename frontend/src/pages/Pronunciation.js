@@ -32,77 +32,42 @@ export default function Pronunciation() {
     const { error: showError } = useToast();
 
     useEffect(() => {
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
-
-            recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = true;
-            recognitionRef.current.interimResults = true;
-            recognitionRef.current.lang = 'en-US';
-
-            if (SpeechGrammarList && targetSentence) {
-                const grammar = `#JSGF V1.0; grammar phrase; public <phrase> = ${targetSentence.replace(/[^\w\s]/gi, '')} ;`;
-                const speechRecognitionList = new SpeechGrammarList();
-                speechRecognitionList.addFromString(grammar, 1);
-                recognitionRef.current.grammars = speechRecognitionList;
-            }
-
-            recognitionRef.current.onstart = () => {
-                setIsRecording(true);
-                setError('');
-                setAnalysis(null);
-            };
-
-            recognitionRef.current.onend = () => {
-                setIsRecording(false);
-                if (transcriptRef.current && transcriptRef.current.trim().length > 0) {
-                    handleAnalysis(targetSentence, transcriptRef.current);
-                }
-            };
-
-            recognitionRef.current.onresult = (event) => {
-                const transcript = Array.from(event.results)
-                    .map(result => result[0].transcript)
-                    .join('');
-                transcriptRef.current = transcript;
-                setSpokenText(transcript);
-            };
-
-            recognitionRef.current.onerror = (event) => {
-                if (event.error !== 'no-speech') {
-                    setError('Lỗi nhận diện giọng nói: ' + event.error);
-                }
-                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    setIsRecording(false);
-                }
-            };
-        } else {
-            setError('Trình duyệt của bạn không hỗ trợ nhận diện giọng nói.');
-        }
-
         const loadVoices = () => setVoices(window.speechSynthesis.getVoices());
         window.speechSynthesis.onvoiceschanged = loadVoices;
         loadVoices();
     }, [targetSentence]);
 
+    // Removed unused SpeechRecognition logic that was causing confusion and potential conflicts
+    // The app relies on MediaRecorder for sending audio to backend
+
     const startRecording = async () => {
         try {
+            // Simplify constraints to avoid 'OverconstrainedError' on mobile
             const constraints = {
                 audio: {
-                    sampleRate: 16000,
-                    channelCount: 1,
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true
                 }
             };
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                ? 'audio/webm;codecs=opus'
-                : 'audio/webm';
 
-            mediaRecorderRef.current = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 48000 });
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+            // Better mimeType detection
+            let mimeType = 'audio/webm';
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                mimeType = 'audio/webm;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                mimeType = 'audio/mp4'; // iOS Safari 14.5+
+            } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+                mimeType = 'audio/ogg'; // Firefox
+            }
+
+            // Create recorder with flexible options
+            const options = { mimeType };
+            // audioBitsPerSecond is optional, letting browser decide is safer
+
+            mediaRecorderRef.current = new MediaRecorder(stream, options);
             audioChunksRef.current = [];
 
             mediaRecorderRef.current.ondataavailable = (event) => {
@@ -110,13 +75,15 @@ export default function Pronunciation() {
             };
 
             mediaRecorderRef.current.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
                 const reader = new FileReader();
                 reader.readAsDataURL(audioBlob);
                 reader.onloadend = () => {
                     const base64Audio = reader.result.split(',')[1];
                     handleAnalysis(targetSentence, base64Audio);
                 };
+
+                // Stop all tracks to release microphone
                 stream.getTracks().forEach(track => track.stop());
             };
 
@@ -127,7 +94,21 @@ export default function Pronunciation() {
             setSpokenText('(Đang ghi âm...)');
         } catch (err) {
             console.error('Microphone access error:', err);
-            showError('Không thể truy cập microphone. Vui lòng kiểm tra quyền truy cập.');
+            let msg = 'Không thể truy cập microphone.';
+
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                msg = 'Bạn đã từ chối quyền truy cập Microphone. Vui lòng cấp quyền trong cài đặt trình duyệt.';
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                msg = 'Không tìm thấy microphone trên thiết bị của bạn.';
+            } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                msg = 'Microphone đang được sử dụng bởi ứng dụng khác.';
+            } else if (err.name === 'OverconstrainedError') {
+                msg = 'Thiết bị không hỗ trợ định dạng âm thanh yêu cầu.';
+            } else if (err.name === 'TypeError' && window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
+                msg = 'Trình duyệt yêu cầu kết nối HTTPS để sử dụng Microphone.';
+            }
+
+            showError(msg);
         }
     };
 

@@ -313,3 +313,84 @@ tbody tr:last-child td {
   padding: 0;
   border-radius: 8px;
 }
+
+/* ====== Mobile Responsive ====== */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    border-radius: 8px;
+  }
+
+  .btn-lg {
+    padding: 10px 20px;
+    font-size: 0.92rem;
+  }
+
+  .btn-sm {
+    padding: 5px 10px;
+    font-size: 0.72rem;
+  }
+
+  input,
+  textarea,
+  select {
+    padding: 8px 12px;
+    font-size: 0.88rem;
+    border-radius: 8px;
+  }
+
+  .badge {
+    padding: 2px 8px;
+    font-size: 0.68rem;
+  }
+
+  table {
+    font-size: 0.82rem;
+  }
+
+  thead th {
+    padding: 8px 10px;
+    font-size: 0.7rem;
+  }
+
+  tbody td {
+    padding: 8px 10px;
+  }
+
+  .container {
+    padding: 0 12px;
+  }
+
+  /* Hide scrollbars on mobile for cleaner look */
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 13px;
+  }
+
+  .btn {
+    padding: 7px 12px;
+    font-size: 0.78rem;
+  }
+
+  input,
+  textarea,
+  select {
+    padding: 7px 10px;
+    font-size: 0.85rem;
+  }
+
+  .container {
+    padding: 0 8px;
+  }
+}

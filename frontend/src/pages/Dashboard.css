@@ -1595,27 +1595,40 @@
 
 @media (max-width: 768px) {
   .dashboard {
-    padding: 18px 14px 30px;
+    padding: 14px 10px 30px;
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 
   .charts-grid {
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: 12px;
+  }
+
+  .dashboard-hero {
+    padding: 18px;
+    border-radius: 16px;
   }
 
   .dashboard-hero h1 {
-    font-size: 1.3rem;
+    font-size: 1.15rem;
+  }
+
+  .hero-subtitle {
+    font-size: 0.82rem;
   }
 
   .hero-content {
     flex-direction: column;
     align-items: flex-start;
-    gap: 14px;
+    gap: 12px;
+  }
+
+  .section-header h2 {
+    font-size: 1.05rem;
   }
 
   .quick-actions {
@@ -1625,6 +1638,18 @@
 
   .quick-action-btn {
     padding: 12px 8px;
+    border-radius: 12px;
+  }
+
+  .qa-icon {
+    font-size: 1.2rem;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .qa-label {
+    font-size: 0.78rem;
   }
 
   .qa-desc {
@@ -1646,32 +1671,76 @@
   }
 
   .stat-card {
+    padding: 14px;
     border-radius: 14px;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  .stat-label {
+    font-size: 0.72rem;
   }
 
   .srs-review-widget {
     flex-direction: column;
-    padding: 16px;
+    padding: 14px;
+    border-radius: 14px;
+    gap: 12px;
   }
 
   .srs-widget-stats {
     justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
   .dashboard-tabs {
     overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dash-tab {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    white-space: nowrap;
   }
 
   .mission-filters {
     overflow-x: auto;
     flex-wrap: nowrap;
     padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mission-filter-btn {
+    padding: 6px 14px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .mission-card {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .mission-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  .mission-icon {
+    font-size: 1.3rem;
+  }
+
+  .mission-title {
+    font-size: 0.88rem;
   }
 
   .mission-action {
@@ -1683,6 +1752,22 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
+    gap: 14px;
+  }
+
+  .level-card {
+    padding: 20px;
+    border-radius: 16px;
+  }
+
+  .level-card-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+  }
+
+  .level-card-info h2 {
+    font-size: 1.3rem;
   }
 }
 

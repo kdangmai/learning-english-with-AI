@@ -7,11 +7,23 @@ const SUGGESTED_TOPICS = [
   { label: 'Travel', icon: '✈️' },
   { label: 'Technology', icon: '💻' },
   { label: 'Daily Life', icon: '☀️' },
-  { label: 'Food', icon: '🍜' },
+  { label: 'Food & Cooking', icon: '🍜' },
   { label: 'Environment', icon: '🌿' },
   { label: 'Education', icon: '📚' },
   { label: 'Business', icon: '💼' },
   { label: 'Hobbies', icon: '🎨' },
+  { label: 'Health & Fitness', icon: '💪' },
+  { label: 'Entertainment', icon: '🎬' },
+  { label: 'Sports', icon: '⚽' },
+  { label: 'Family & Friends', icon: '👨‍👩‍👧‍👦' },
+  { label: 'Shopping', icon: '🛒' },
+  { label: 'Weather & Nature', icon: '🌤️' },
+  { label: 'Culture & History', icon: '🏛️' },
+  { label: 'Jobs & Careers', icon: '👔' },
+  { label: 'Science', icon: '🔬' },
+  { label: 'Social Media', icon: '📱' },
+  { label: 'Music', icon: '🎵' },
+  { label: 'Animals & Pets', icon: '🐾' },
 ];
 
 const DIFFICULTY_LEVELS = [
@@ -37,10 +49,6 @@ export function SentenceWriting() {
   const textareaRef = useRef(null);
 
   const { error: showError, warning: showWarning, success: showSuccess } = useToast();
-
-  const handleTopicClick = (t) => {
-    setTopic(prev => prev === t ? '' : t);
-  };
 
   const handleGenerateSentence = async () => {
     setIsGenerating(true);
@@ -183,25 +191,30 @@ export function SentenceWriting() {
 
             <div className="setting-group">
               <label>🏷️ Chủ đề (Tùy chọn)</label>
-              <div className="topic-input-wrapper">
-                <span className="search-icon-sw">🔍</span>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: Technology, Travel..."
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                />
-              </div>
-              <div className="topic-chips">
-                {SUGGESTED_TOPICS.map((t) => (
-                  <button
-                    key={t.label}
-                    className={`topic-chip ${topic === t.label ? 'active' : ''}`}
-                    onClick={() => handleTopicClick(t.label)}
+              <div className="topic-row">
+                <div className="topic-input-wrapper">
+                  <span className="search-icon-sw">🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Nhập chủ đề..."
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                  />
+                </div>
+                <div className="topic-select-wrapper">
+                  <select
+                    className="topic-select"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
                   >
-                    <span>{t.icon}</span> {t.label}
-                  </button>
-                ))}
+                    <option value="">-- Chọn chủ đề --</option>
+                    {SUGGESTED_TOPICS.map((t) => (
+                      <option key={t.label} value={t.label}>
+                        {t.icon} {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </div>

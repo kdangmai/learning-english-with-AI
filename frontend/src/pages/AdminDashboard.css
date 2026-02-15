@@ -1052,22 +1052,38 @@
 
 @media (max-width: 768px) {
     .admin-dashboard {
-        padding: 18px 14px 30px;
+        padding: 14px 10px 30px;
+    }
+
+    .admin-hero {
+        padding: 18px;
+        border-radius: 16px;
+    }
+
+    .admin-hero h1 {
+        font-size: 1.15rem;
     }
 
     .admin-stats-grid {
         grid-template-columns: 1fr 1fr;
-        gap: 10px;
+        gap: 8px;
     }
 
     .admin-hero-content {
         flex-direction: column;
         align-items: flex-start;
-        gap: 14px;
+        gap: 12px;
     }
 
     .admin-tabs {
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-tab-btn {
+        padding: 8px 14px;
+        font-size: 0.82rem;
+        white-space: nowrap;
     }
 
     .users-toolbar {
@@ -1107,12 +1123,44 @@
     }
 
     .data-table {
-        font-size: 0.82rem;
+        font-size: 0.8rem;
     }
 
     .data-table th,
     .data-table td {
-        padding: 10px 12px;
+        padding: 8px 10px;
+    }
+
+    /* Allow horizontal scroll for wide tables */
+    .table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-dashboard {
+        padding: 10px 6px 20px;
+    }
+
+    .admin-stats-grid {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .admin-hero h1 {
+        font-size: 1rem;
+    }
+
+    .admin-tab-btn {
+        padding: 6px 10px;
+        font-size: 0.78rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 6px 8px;
+        font-size: 0.75rem;
     }
 }
 

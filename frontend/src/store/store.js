@@ -44,15 +44,23 @@ export const useUserStore = create((set) => ({
       if (data.success) {
         set({ user: data.user, isAuthenticated: true });
       } else {
-        // IfAPI returns success:false but 200 OK (rare but possible)
+        // Only wipe token if it's a legitimate auth failure
         localStorage.removeItem('token');
         set({ token: null, isAuthenticated: false, user: null });
       }
     } catch (error) {
+      // Don't log out if the request was simply canceled (e.g. by our deduplication logic)
+      if (error.code === 'ERR_CANCELED' || error.message === 'Duplicate request cancelled') {
+        return;
+      }
+
       console.error('Fetch user error:', error);
-      // Handle 401 specifically if needed, though interceptor handles it
-      localStorage.removeItem('token');
-      set({ token: null, isAuthenticated: false, user: null });
+      // interceptor in api.js handles 401 redirect, 
+      // but we clean up state here if profile fetch fails for other reasons
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        set({ token: null, isAuthenticated: false, user: null });
+      }
     }
   },
 

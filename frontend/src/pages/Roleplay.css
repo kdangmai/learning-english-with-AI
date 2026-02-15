@@ -829,26 +829,34 @@
 /* ====== Responsive ====== */
 @media (max-width: 768px) {
     .roleplay-page {
-        padding: 16px 12px;
+        padding: 14px 10px;
+    }
+
+    .roleplay-header h1 {
+        font-size: 1.25rem;
     }
 
     .scenarios-grid {
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: 10px;
     }
 
     .scenario-card {
-        padding: 20px 16px;
+        padding: 18px 14px;
     }
 
     .scenario-icon {
-        width: 52px;
-        height: 52px;
-        font-size: 1.8rem;
+        width: 50px;
+        height: 50px;
+        font-size: 1.6rem;
     }
 
     .scenario-title {
-        font-size: 0.95rem;
+        font-size: 0.9rem;
+    }
+
+    .scenario-desc {
+        font-size: 0.82rem;
     }
 
     .report-grid {
@@ -856,14 +864,82 @@
     }
 
     .report-container {
-        padding: 24px 18px;
+        padding: 22px 16px;
     }
 
     .roleplay-container {
         width: 100%;
-        height: 100vh;
+        height: 100%;
         border-radius: 0;
         margin: 0;
+        box-shadow: none;
+        border: none;
+    }
+
+    .chat-header {
+        padding: 10px 14px;
+    }
+
+    .chat-info h3 {
+        font-size: 0.92rem;
+    }
+
+    .chat-info span {
+        font-size: 0.75rem;
+    }
+
+    .end-btn {
+        padding: 6px 12px;
+        font-size: 0.78rem;
+    }
+
+    .roleplay-messages {
+        padding: 14px 10px;
+        gap: 6px;
+    }
+
+    .message-row {
+        max-width: 90%;
+    }
+
+    .avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 10px;
+        font-size: 0.92rem;
+    }
+
+    .message-bubble {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+        border-radius: 16px;
+    }
+
+    .input-area {
+        padding: 10px 12px;
+        gap: 8px;
+    }
+
+    .input-area input {
+        padding: 8px 14px;
+        font-size: 0.88rem;
+        border-radius: 12px;
+    }
+
+    .tool-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 0.95rem;
+    }
+
+    .send-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.95rem;
+    }
+
+    .message-actions {
+        opacity: 1;
     }
 }
 

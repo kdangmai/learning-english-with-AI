@@ -895,7 +895,6 @@ export function Vocabulary() {
                     placeholder="Nhập chủ đề..."
                     value={customTopic}
                     onChange={(e) => setCustomTopic(e.target.value)}
-                    autoFocus
                   />
                 </div>
                 <div className="vocab-topic-select-wrapper">

@@ -1850,12 +1850,13 @@
 
   .vocab-topic-input-wrapper input,
   .vocab-topic-select {
-    font-size: 0.85rem;
-    padding: 9px 12px 9px 30px;
+    font-size: 16px;
+    /* Prevent auto-zoom on mobile focus */
+    padding: 12px 12px 12px 36px;
   }
 
   .vocab-topic-select {
-    padding: 9px 30px 9px 12px;
+    padding: 12px 36px 12px 14px;
   }
 
   .action-area {

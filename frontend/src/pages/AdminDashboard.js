@@ -46,6 +46,9 @@ export default function AdminDashboard() {
     const [editKey, setEditKey] = useState(null);
     const fileInputRef = useRef(null);
 
+    // View Usage Detail State
+    const [viewUsageUser, setViewUsageUser] = useState(null);
+
     // Search / Filter
     const [userSearch, setUserSearch] = useState('');
     const [userRoleFilter, setUserRoleFilter] = useState('all');
@@ -61,7 +64,7 @@ export default function AdminDashboard() {
     const [availableModels, setAvailableModels] = useState([]);
 
     // Monitoring State
-    const [keyStats, setKeyStats] = useState({ stats: {}, cooldowns: {} });
+    const [keyStats, setKeyStats] = useState({ stats: {}, userStats: {}, cooldowns: {} });
 
     // Server Logs State
     const [serverLogs, setServerLogs] = useState([]);
@@ -154,12 +157,77 @@ export default function AdminDashboard() {
             if (!tabDataLoaded.current.config) fetchConfig();
         } else if (activeTab === 'logs') {
             fetchServerLogs();
+        } else if (activeTab === 'usage') {
+            if (!tabDataLoaded.current.users) fetchUsers();
+            if (!tabDataLoaded.current.apikeys) fetchApiKeys();
+            fetchKeyStats();
+            interval = setInterval(fetchKeyStats, 10000);
         }
         return () => {
             if (interval) clearInterval(interval);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab, logPage, logFilter]);
+
+    // Computed usage data for the Usage Monitor tab
+    const usageData = useMemo(() => {
+        const stats = keyStats.stats || {};
+        const keys = Object.keys(stats);
+
+        let totalUses = 0;
+        let totalFailures = 0;
+
+        const perKeyData = keys.map(key => {
+            const s = stats[key];
+            totalUses += s.uses || 0;
+            totalFailures += s.failures || 0;
+            const matchedKey = apiKeys.find(k => k.fullKey === key);
+            return {
+                key,
+                name: matchedKey?.name || key.slice(0, 8) + '...',
+                uses: s.uses || 0,
+                failures: s.failures || 0,
+                lastUsed: s.lastUsed || 0,
+                isActive: matchedKey?.isActive ?? false,
+            };
+        }).sort((a, b) => (b.uses + b.failures) - (a.uses + a.failures));
+
+        const totalRequests = totalUses + totalFailures;
+        const successRate = totalRequests > 0 ? Math.round((totalUses / totalRequests) * 100) : 0;
+        const maxUsage = Math.max(...perKeyData.map(k => k.uses + k.failures), 1);
+
+        // Per-user usage from backend
+        const userUsageMap = {};
+        const backendUserStats = keyStats.userStats || {};
+
+        users.forEach(u => {
+            const stat = backendUserStats[u._id] || { requests: 0, successes: 0, failures: 0 };
+            const userTotal = stat.requests || 0;
+            const userSuccess = stat.successes || 0;
+            const userRate = userTotal > 0 ? Math.round((userSuccess / userTotal) * 100) : 0;
+
+            userUsageMap[u._id] = {
+                username: u.username,
+                fullName: u.fullName || u.username,
+                email: u.email,
+                requests: userTotal,
+                successRate: userRate,
+                failures: stat.failures || 0,
+                features: stat.features || {}
+            };
+        });
+
+        return {
+            totalRequests,
+            totalUses,
+            totalFailures,
+            successRate,
+            perKeyData,
+            maxUsage,
+            activeKeysCount: apiKeys.filter(k => k.isActive).length,
+            userUsageMap,
+        };
+    }, [keyStats, apiKeys, users]);
 
     const fetchUsers = useCallback(async () => {
         setLoading(true);
@@ -183,6 +251,7 @@ export default function AdminDashboard() {
             if (data.success) {
                 setKeyStats({
                     stats: data.stats || {},
+                    userStats: data.userStats || {},
                     cooldowns: data.cooldowns || {}
                 });
             }
@@ -649,6 +718,7 @@ export default function AdminDashboard() {
         { key: 'users', icon: '👥', label: 'Users', count: users.length },
         { key: 'config', icon: '🤖', label: 'AI Config', count: null },
         { key: 'apikeys', icon: '🔑', label: 'API Keys', count: apiKeys.length },
+        { key: 'usage', icon: '📊', label: 'Usage Monitor', count: null },
         { key: 'logs', icon: '📋', label: 'Server Logs', count: logTotal || null },
     ];
 
@@ -1086,6 +1156,203 @@ export default function AdminDashboard() {
                             </table>
                         </div>
                     </div>
+                ) : activeTab === 'usage' ? (
+                    /* ==================== USAGE MONITOR TAB ==================== */
+                    <div className="usage-monitor-section">
+                        {/* Usage Overview Stats */}
+                        <div className="usage-overview-grid">
+                            <div className="usage-stat-card" style={{ '--stat-color': '#6366f1' }}>
+                                <div className="stat-icon">📨</div>
+                                <div className="stat-value">{usageData.totalRequests.toLocaleString()}</div>
+                                <div className="stat-label">Total Requests</div>
+                                <div className={`stat-trend ${usageData.totalRequests > 0 ? 'up' : 'neutral'}`}>
+                                    {usageData.totalRequests > 0 ? '📈 Active' : '— No data'}
+                                </div>
+                            </div>
+                            <div className="usage-stat-card" style={{ '--stat-color': '#22c55e' }}>
+                                <div className="stat-icon">✅</div>
+                                <div className="stat-value">{usageData.successRate}%</div>
+                                <div className="stat-label">Success Rate</div>
+                                <div className={`stat-trend ${usageData.successRate >= 90 ? 'up' : usageData.successRate >= 70 ? 'neutral' : 'down'}`}>
+                                    {usageData.successRate >= 90 ? '🟢 Healthy' : usageData.successRate >= 70 ? '🟡 Fair' : '🔴 Low'}
+                                </div>
+                            </div>
+                            <div className="usage-stat-card" style={{ '--stat-color': '#8b5cf6' }}>
+                                <div className="stat-icon">🔑</div>
+                                <div className="stat-value">{usageData.activeKeysCount}</div>
+                                <div className="stat-label">Active Keys</div>
+                                <div className="stat-trend neutral">
+                                    of {apiKeys.length} total
+                                </div>
+                            </div>
+                            <div className="usage-stat-card" style={{ '--stat-color': '#f59e0b' }}>
+                                <div className="stat-icon">❌</div>
+                                <div className="stat-value">{usageData.totalFailures.toLocaleString()}</div>
+                                <div className="stat-label">Failed Requests</div>
+                                <div className={`stat-trend ${usageData.totalFailures === 0 ? 'up' : 'down'}`}>
+                                    {usageData.totalFailures === 0 ? '🟢 No failures' : `${Math.round((usageData.totalFailures / Math.max(usageData.totalRequests, 1)) * 100)}% error rate`}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Per-Key Usage Bar Chart */}
+                        <div className="usage-chart-container">
+                            <div className="usage-chart-header">
+                                <h3 className="usage-chart-title">📊 Per-Key Usage Distribution</h3>
+                            </div>
+                            {usageData.perKeyData.length > 0 ? (
+                                <div className="usage-bars">
+                                    {usageData.perKeyData.slice(0, 20).map((k, i) => {
+                                        const total = k.uses + k.failures;
+                                        const heightPct = Math.max((total / usageData.maxUsage) * 100, 3);
+                                        const failRate = total > 0 ? (k.failures / total) : 0;
+                                        const barClass = failRate > 0.5 ? 'danger' : failRate > 0.2 ? 'warning' : '';
+                                        return (
+                                            <div className="usage-bar-col" key={k.key} title={`${k.name}\nSuccess: ${k.uses}\nFailed: ${k.failures}`}>
+                                                <div className="bar-value">{total}</div>
+                                                <div
+                                                    className={`usage-bar ${barClass}`}
+                                                    style={{ height: `${heightPct}%` }}
+                                                />
+                                                <div className="bar-label">{k.name.length > 8 ? k.name.slice(0, 8) + '…' : k.name}</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="usage-no-data">
+                                    <div className="usage-no-data-icon">📭</div>
+                                    <div className="usage-no-data-text">No API key usage data available yet</div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Per-Key Details Table */}
+                        <div className="usage-key-table-container">
+                            <div className="usage-table-header">
+                                <h3 className="usage-table-title">🔑 Key Usage Details</h3>
+                            </div>
+                            <div className="data-table-container">
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Key Name</th>
+                                            <th>Status</th>
+                                            <th style={{ textAlign: 'center' }}>Successful</th>
+                                            <th style={{ textAlign: 'center' }}>Failed</th>
+                                            <th style={{ textAlign: 'center' }}>Success Rate</th>
+                                            <th>Last Used</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {usageData.perKeyData.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                                                    No usage data available
+                                                </td>
+                                            </tr>
+                                        ) : usageData.perKeyData.map(k => {
+                                            const total = k.uses + k.failures;
+                                            const rate = total > 0 ? Math.round((k.uses / total) * 100) : 0;
+                                            return (
+                                                <tr key={k.key}>
+                                                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{k.name}</td>
+                                                    <td>
+                                                        <span className={`badge ${k.isActive ? 'badge-active' : 'badge-inactive'}`}>
+                                                            {k.isActive ? 'Active' : 'Inactive'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        <span style={{ color: '#4ade80', fontWeight: 700 }}>{k.uses.toLocaleString()}</span>
+                                                    </td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        <span style={{ color: k.failures > 0 ? '#f87171' : 'var(--text-muted)', fontWeight: 700 }}>{k.failures.toLocaleString()}</span>
+                                                    </td>
+                                                    <td style={{ textAlign: 'center' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                                                            <div className="rate-bar-bg" style={{ width: '60px' }}>
+                                                                <div
+                                                                    className={`rate-bar-fill ${rate >= 90 ? 'low' : rate >= 70 ? 'medium' : 'high'}`}
+                                                                    style={{ width: `${rate}%` }}
+                                                                />
+                                                            </div>
+                                                            <span className="rate-text">{rate}%</span>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                                                        {k.lastUsed ? new Date(k.lastUsed).toLocaleString() : 'Never'}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Per-User Usage Breakdown */}
+                        <div className="user-usage-section">
+                            <div className="user-usage-header">
+                                <h3 className="user-usage-title">👥 Per-User API Usage</h3>
+                            </div>
+                            {users.length === 0 ? (
+                                <div className="usage-no-data">
+                                    <div className="usage-no-data-icon">👤</div>
+                                    <div className="usage-no-data-text">No user data available</div>
+                                </div>
+                            ) : (
+                                <div className="user-usage-grid">
+                                    {users.slice(0, 12).map(u => {
+                                        const userData = usageData.userUsageMap[u._id] || {};
+                                        return (
+                                            <div
+                                                className="user-usage-card"
+                                                key={u._id}
+                                                onClick={() => setViewUsageUser(userData)}
+                                                style={{ cursor: 'pointer' }}
+                                                title="Click to view full usage details"
+                                            >
+                                                <div className="user-usage-card-header">
+                                                    <div
+                                                        className="user-usage-avatar"
+                                                        style={{ background: `hsl(${(u.username.length * 50) % 360}, 70%, 45%)` }}
+                                                    >
+                                                        {u.username.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div className="user-usage-info">
+                                                        <span className="user-usage-name">{u.fullName || u.username}</span>
+                                                        <span className="user-usage-email">{u.email}</span>
+                                                    </div>
+                                                    <span className={`badge ${u.role === 'admin' ? 'badge-admin' : 'badge-user'}`}>
+                                                        {u.role === 'admin' ? '🛡️' : '👤'} {u.role}
+                                                    </span>
+                                                </div>
+                                                <div className="user-usage-stats">
+                                                    <div className="user-usage-stat">
+                                                        <div className="user-stat-value">{userData.requests?.toLocaleString() || 0}</div>
+                                                        <div className="user-stat-label">Requests</div>
+                                                    </div>
+                                                    <div className="user-usage-stat">
+                                                        <div className="user-stat-value">{userData.successRate || 0}%</div>
+                                                        <div className="user-stat-label">Success</div>
+                                                    </div>
+                                                </div>
+                                                <div className="rate-display">
+                                                    <div className="rate-bar-bg">
+                                                        <div
+                                                            className={`rate-bar-fill ${(userData.successRate || 0) >= 90 ? 'low' : (userData.successRate || 0) >= 70 ? 'medium' : 'high'}`}
+                                                            style={{ width: `${userData.successRate || 0}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="rate-text">{(userData.successRate || 0)}%</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 ) : (
                     /* ==================== SERVER LOGS TAB ==================== */
                     <div className="logs-section">
@@ -1491,6 +1758,93 @@ export default function AdminDashboard() {
                             </select>
                         </div>
                     </form>
+                )}
+            </Modal>
+
+            {/* View Usage Details Modal */}
+            <Modal
+                isOpen={!!viewUsageUser}
+                onClose={() => setViewUsageUser(null)}
+                title={`📊 Monthly Usage: ${viewUsageUser?.username || 'User'}`}
+                footer={(
+                    <button type="button" className="cancel-btn" onClick={() => setViewUsageUser(null)} style={{ width: '100%' }}>
+                        Close
+                    </button>
+                )}
+            >
+                {viewUsageUser && (
+                    <div style={{ padding: '0 10px' }}>
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(3, 1fr)',
+                            gap: '12px',
+                            marginBottom: '24px',
+                            textAlign: 'center'
+                        }}>
+                            <div style={{ background: '#f1f5f9', padding: '12px', borderRadius: '8px' }}>
+                                <div style={{ fontSize: '0.875rem', color: '#64748b' }}>Total Requests</div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#0f172a' }}>{viewUsageUser.requests}</div>
+                            </div>
+                            <div style={{ background: '#dcfce7', padding: '12px', borderRadius: '8px' }}>
+                                <div style={{ fontSize: '0.875rem', color: '#166534' }}>Successful</div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#16a34a' }}>
+                                    {Math.round((viewUsageUser.requests * viewUsageUser.successRate) / 100) || 0}
+                                </div>
+                            </div>
+                            <div style={{ background: '#fee2e2', padding: '12px', borderRadius: '8px' }}>
+                                <div style={{ fontSize: '0.875rem', color: '#991b1b' }}>Failed</div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ef4444' }}>{viewUsageUser.failures}</div>
+                            </div>
+                        </div>
+
+                        <h5 style={{
+                            borderBottom: '1px solid #e2e8f0',
+                            paddingBottom: '8px',
+                            marginBottom: '16px',
+                            fontSize: '1rem',
+                            fontWeight: '600',
+                            color: '#334155'
+                        }}>Feature Breakdown</h5>
+
+                        {Object.keys(viewUsageUser.features || {}).length === 0 ? (
+                            <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>
+                                No specific feature usage recorded yet for this month.
+                            </div>
+                        ) : (
+                            <div style={{ display: 'grid', gap: '8px' }}>
+                                {Object.entries(viewUsageUser.features).map(([feature, count]) => (
+                                    <div key={feature} style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        padding: '10px 14px',
+                                        background: '#f8fafc',
+                                        borderRadius: '6px',
+                                        border: '1px solid #f1f5f9'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontSize: '1.2rem' }}>
+                                                {feature.includes('chat') ? '💬' :
+                                                    feature.includes('vocab') ? '📚' :
+                                                        feature.includes('grammar') ? '📝' :
+                                                            feature.includes('pronunciation') ? '🎙️' :
+                                                                feature.includes('roleplay') ? '🎭' :
+                                                                    feature.includes('translat') ? '🌐' : '⚙️'}
+                                            </span>
+                                            <span style={{
+                                                textTransform: 'capitalize',
+                                                color: '#334155',
+                                                fontWeight: '500'
+                                            }}>
+                                                {feature.replace(/_/g, ' ')}
+                                            </span>
+                                        </div>
+                                        <span style={{ fontWeight: 'bold', color: '#475569' }}>{count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 )}
             </Modal>
 

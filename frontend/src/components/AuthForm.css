@@ -662,3 +662,110 @@
         gap: 6px;
     }
 }
+
+/* =============================================
+   DARK MODE OVERRIDES (AuthForm)
+   ============================================= */
+[data-theme="dark"] {
+    --neu-1: #0f172a;
+    /* Deep Slate */
+    --neu-2: #020617;
+    /* Darker Shadow */
+    --white: rgba(255, 255, 255, 0.1);
+    /* Light Shadow/Highlight */
+    --gray: #94a3b8;
+    --black: #f1f5f9;
+    /* Text becomes white */
+    --purple: #6366f1;
+}
+
+[data-theme="dark"] .auth-body {
+    background-color: var(--neu-1);
+    background-image: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+}
+
+[data-theme="dark"] .main,
+[data-theme="dark"] .container,
+[data-theme="dark"] .switch,
+[data-theme="dark"] .switch__circle,
+[data-theme="dark"] .container-otp {
+    background-color: #1e293b;
+    /* Solid Slate-800 for opacity */
+    /* Remove any rgba/glass effects to prevent seeing overlapping forms */
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .button {
+    color: #ffffff !important;
+    /* Ensure readable white text */
+}
+
+[data-theme="dark"] .main {
+    box-shadow: 20px 20px 60px #020617, -20px -20px 60px #1e293b;
+}
+
+[data-theme="dark"] .form__input {
+    background-color: rgba(15, 23, 42, 0.5);
+    /* Much darker background */
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5), inset -2px -2px 5px rgba(255, 255, 255, 0.05);
+    color: #f1f5f9 !important;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    caret-color: #6366f1;
+}
+
+/* Force dark background on autofill webkit */
+[data-theme="dark"] .form__input:-webkit-autofill,
+[data-theme="dark"] .form__input:-webkit-autofill:hover,
+[data-theme="dark"] .form__input:-webkit-autofill:focus,
+[data-theme="dark"] .form__input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #1e293b inset !important;
+    -webkit-text-fill-color: #f1f5f9 !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+[data-theme="dark"] .form__input:focus {
+    box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.6), inset -4px -4px 8px rgba(255, 255, 255, 0.08);
+    border-color: rgba(99, 102, 241, 0.5);
+    background-color: rgba(15, 23, 42, 0.7);
+}
+
+[data-theme="dark"] .switch {
+    box-shadow: 4px 4px 10px #020617, -4px -4px 10px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .switch__circle {
+    box-shadow: inset 8px 8px 12px #020617, inset -8px -8px 12px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .description {
+    color: #cbd5e1;
+}
+
+[data-theme="dark"] .form__link {
+    color: #a5b4fc;
+    border-bottom-color: rgba(99, 102, 241, 0.3);
+}
+
+/* Ensure hidden forms are truly invisible to prevent ghost text */
+[data-theme="dark"] .is-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: -1;
+}
+
+[data-theme="dark"] .otp-field {
+    background-color: rgba(15, 23, 42, 0.5) !important;
+    color: #f1f5f9 !important;
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5), inset -2px -2px 5px rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-theme="dark"] .title {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .form__span {
+    color: #94a3b8;
+}

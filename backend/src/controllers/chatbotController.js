@@ -57,7 +57,7 @@ exports.sendMessage = async (req, res) => {
         };
       }
 
-      aiResponse = await ChatbotService.sendToChatbot(message || '', conversationContext, model, audioData);
+      aiResponse = await ChatbotService.sendToChatbot(message || '', conversationContext, model, audioData, userId, 'chat');
     } catch (error) {
       console.error('Chatbot error:', error);
       aiResponse = 'Sorry, I encountered an error. Please try again later.';

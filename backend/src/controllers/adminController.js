@@ -517,11 +517,13 @@ exports.getKeyStats = async (req, res) => {
     try {
         const ChatbotService = require('../services/chatbotService');
         const stats = ChatbotService.getKeyStats();
+        const userStats = await ChatbotService.getUserStats();
         const cooldowns = ChatbotService._cooldowns || {};
 
         res.json({
             success: true,
             stats,
+            userStats,
             cooldowns,
             timestamp: Date.now()
         });

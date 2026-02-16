@@ -18,7 +18,7 @@ exports.analyzePronunciation = async (req, res) => {
 
         const input = audioData || userSpokenSentence;
         const isAudio = !!audioData;
-        const result = await ChatbotService.analyzePronunciation(targetSentence, input, isAudio);
+        const result = await ChatbotService.analyzePronunciation(targetSentence, input, isAudio, req.userId);
 
         res.json({ success: true, ...result });
     } catch (error) {
@@ -36,7 +36,7 @@ exports.generateSentence = async (req, res) => {
         const { level } = req.query; // 'A1', 'B2', etc.
         const effectiveLevel = level || 'A1';
 
-        const sentence = await ChatbotService.generatePracticeSentence(effectiveLevel);
+        const sentence = await ChatbotService.generatePracticeSentence(effectiveLevel, req.userId);
 
         res.json({ success: true, sentence });
     } catch (error) {

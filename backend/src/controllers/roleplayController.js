@@ -44,7 +44,7 @@ exports.startRoleplay = async (req, res) => {
             // Let's trigger a greeting.
 
             const prompt = "Please start the conversation with a greeting appropriate for your role.";
-            const aiGreeting = await ChatbotService.generateRoleplayResponse(scenario, role, [], prompt);
+            const aiGreeting = await ChatbotService.generateRoleplayResponse(scenario, role, [], prompt, null, userId);
 
             session.messages.push({
                 role: 'assistant',
@@ -112,7 +112,8 @@ exports.sendMessage = async (req, res) => {
             role,
             session.messages, // Pass history containing new user message
             message || '',
-            audioData
+            audioData,
+            userId
         );
 
         session.messages.push({
@@ -151,7 +152,7 @@ exports.endSession = async (req, res) => {
         const { scenario, role } = session.roleplayConfig;
 
         // Generate Report
-        const reportData = await ChatbotService.generateRoleplayReport(scenario, role, session.messages);
+        const reportData = await ChatbotService.generateRoleplayReport(scenario, role, session.messages, userId);
 
         // Save report
         session.roleplayConfig.report = {

@@ -632,7 +632,8 @@ exports.startLearning = async (req, res) => {
     ${posInstruction}`;
 
     // Call Gemini API
-    const response = await ChatbotService.sendToChatbot(prompt);
+    // Call Gemini API
+    const response = await ChatbotService.sendToChatbot(prompt, '', null, null, userId, 'vocabulary_gen');
 
     // Parse JSON response
     let vocabularyData = [];

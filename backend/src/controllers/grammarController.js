@@ -254,7 +254,7 @@ exports.generateExercises = async (req, res) => {
     }
 
     const ChatbotService = require('../services/chatbotService');
-    const exercises = await ChatbotService.generateGrammarExercises(tenseName, 15);
+    const exercises = await ChatbotService.generateGrammarExercises(tenseName, 15, req.userId);
 
     res.json({
       success: true,

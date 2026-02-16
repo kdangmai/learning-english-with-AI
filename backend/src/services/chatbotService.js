@@ -117,11 +117,38 @@ class ChatbotService {
    */
   // --- Key Management State ---
   static _keyStats = {}; // { key: { uses: 0, failures: 0, lastUsed: 0 } }
+  static _userStats = {}; // { userId: { requests: 0, successes: 0, failures: 0, lastActive: 0 } }
   static _cooldowns = {}; // { key: timestamp_when_available }
   static _roundRobinIndex = 0;
 
   static getKeyStats() {
     return this._keyStats;
+  }
+
+  static async getUserStats() {
+    try {
+      const UserUsage = mongoose.models.UserUsage || require('../models/UserUsage');
+      const now = new Date();
+      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const stats = await UserUsage.find({ month: monthStr });
+
+      const map = {};
+      stats.forEach(s => {
+        if (s.userId) {
+          map[s.userId] = {
+            requests: s.totalRequests,
+            successes: s.successRequests,
+            failures: s.failedRequests,
+            features: s.features,
+            lastActive: s.lastActive
+          };
+        }
+      });
+      return map;
+    } catch (e) {
+      console.error('[ChatbotService] Error fetching user stats:', e);
+      return {};
+    }
   }
 
   /**
@@ -131,6 +158,47 @@ class ChatbotService {
     if (!this._keyStats[key]) this._keyStats[key] = { uses: 0, failures: 0, lastUsed: 0 };
     this._keyStats[key].uses++;
     this._keyStats[key].lastUsed = Date.now();
+  }
+
+  /**
+   * Helper: Record usage for a user
+   */
+  static async _recordUserUsage(userId, isSuccess, feature = 'general') {
+    if (!userId) return;
+
+    // In-memory update (legacy/fast access backup)
+    if (!this._userStats[userId]) {
+      this._userStats[userId] = { requests: 0, successes: 0, failures: 0, lastActive: 0 };
+    }
+    this._userStats[userId].requests++;
+    this._userStats[userId].lastActive = Date.now();
+    if (isSuccess) this._userStats[userId].successes++;
+    else this._userStats[userId].failures++;
+
+    // DB Update (Persistent)
+    try {
+      const UserUsage = mongoose.models.UserUsage || require('../models/UserUsage');
+      const now = new Date();
+      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+      const update = {
+        $inc: {
+          totalRequests: 1,
+          successRequests: isSuccess ? 1 : 0,
+          failedRequests: isSuccess ? 0 : 1,
+          [`features.${feature}`]: 1
+        },
+        $set: { lastActive: now }
+      };
+
+      await UserUsage.findOneAndUpdate(
+        { userId, month: monthStr },
+        update,
+        { upsert: true, new: true }
+      );
+    } catch (dbErr) {
+      console.error('[ChatbotService] Failed to record user usage to DB:', dbErr);
+    }
   }
 
   /**
@@ -152,7 +220,7 @@ class ChatbotService {
    * Send message to the configured Chatbot API (Gemini or OpenAI).
    * Implements: Round Robin, Smart Cooldown, and Fallback.
    */
-  static async sendToChatbot(message, context = '', preferredModel = null, audioData = null) {
+  static async sendToChatbot(message, context = '', preferredModel = null, audioData = null, userId = null, feature = 'general') {
     // 1. Get all available keys
     let keys = [];
     try {
@@ -269,6 +337,7 @@ class ChatbotService {
         if (resultText) {
           console.log(`[ChatbotService] Key "${name}" succeeded.`);
           this._recordSuccess(key);
+          await this._recordUserUsage(userId, true, feature); // Record user success with feature
           return resultText;
         } else {
           console.warn(`[ChatbotService] Key "${name}" returned no content.`);
@@ -297,6 +366,7 @@ class ChatbotService {
       }
     }
 
+    await this._recordUserUsage(userId, false, feature); // Record user failure if all keys failed
     throw new Error(`All active API keys failed. Last error: ${lastError?.message}`);
   }
 
@@ -361,20 +431,20 @@ class ChatbotService {
 
   // --- Feature Methods ---
 
-  static async translateVietnamseToEnglish(vietnameseSentence) {
+  static async translateVietnamseToEnglish(vietnameseSentence, userId = null) {
     // New Key: translation_model
     const model = await this.getConfig('translation_model');
     const prompt = `Translate this Vietnamese sentence to English. Provide only the translation, nothing else:\n"${vietnameseSentence}"`;
 
     try {
-      return await this.sendToChatbot(prompt, '', model);
+      return await this.sendToChatbot(prompt, '', model, null, userId, 'translation');
     } catch (error) {
       console.error('Translation error:', error);
       throw error;
     }
   }
 
-  static async getSentenceHints(vietnameseSentence, difficulty) {
+  static async getSentenceHints(vietnameseSentence, difficulty, userId = null) {
     const cacheKey = `hints_${difficulty}_${vietnameseSentence.trim()}`;
     const cached = appCache.get(cacheKey);
     if (cached) return cached;
@@ -414,7 +484,7 @@ class ChatbotService {
           No markdown.`;
       }
 
-      const response = await this.sendToChatbot(prompt, '', model);
+      const response = await this.sendToChatbot(prompt, '', model, null, userId, 'hints');
       const hints = { vocabularyHints: [], grammarStructures: [] };
       const lines = response.split('\n');
 
@@ -437,7 +507,7 @@ class ChatbotService {
     }
   }
 
-  static async upgradeSentence(userSentence, grammarLevel = 'C1', vocabularyLevel = 'C1') {
+  static async upgradeSentence(userSentence, grammarLevel = 'C1', vocabularyLevel = 'C1', userId = null) {
     const cacheKey = `upgrade_${grammarLevel}_${vocabularyLevel}_${userSentence.trim()}`;
     const cached = appCache.get(cacheKey);
     if (cached) return cached;
@@ -456,7 +526,7 @@ class ChatbotService {
         EXPLAIN: [Reason]
         ---`;
 
-      const response = await this.sendToChatbot(prompt, '', model);
+      const response = await this.sendToChatbot(prompt, '', model, null, userId, 'upgrade');
 
       const blocks = response.split('---').map(b => b.trim()).filter(b => b);
       const result = { upgradedSentence: "", improvements: [] };
@@ -495,7 +565,7 @@ class ChatbotService {
     }
   }
 
-  static async generateGrammarExercises(tenseName, count = 15) {
+  static async generateGrammarExercises(tenseName, count = 15, userId = null) {
     const cacheKey = `exercises_${tenseName}_${count}`;
     const cached = appCache.get(cacheKey);
     if (cached) return cached;
@@ -555,7 +625,7 @@ class ChatbotService {
         EXPLAIN: Chuyển từ Past Simple sang Present Perfect.
         ---`;
 
-      const response = await this.sendToChatbot(prompt, '', model);
+      const response = await this.sendToChatbot(prompt, '', model, null, userId, 'grammar_exercise');
 
       const exercises = [];
       const blocks = response.split('---').map(b => b.trim()).filter(b => b);
@@ -661,7 +731,7 @@ class ChatbotService {
     }
   }
 
-  static async evaluateTranslation(vietnameseSentence, userEnglishSentence, grammarDifficulty = 'General') {
+  static async evaluateTranslation(vietnameseSentence, userEnglishSentence, grammarDifficulty = 'General', userId = null) {
     // New Key: translation_eval_model
     const model = await this.getConfig('translation_eval_model');
     const prompt = `Act as an English teacher evaluating a translation from Vietnamese to English.
@@ -683,7 +753,7 @@ class ChatbotService {
     CORRECTION: ...`;
 
     try {
-      const response = await this.sendToChatbot(prompt, '', model);
+      const response = await this.sendToChatbot(prompt, '', model, null, userId, 'translation_eval');
       const result = { score: 0, feedback: "", corrections: [], betterVersion: null };
 
       console.log("[ChatbotService] Translate Eval Raw:", response);
@@ -715,7 +785,7 @@ class ChatbotService {
     }
   }
 
-  static async analyzePronunciation(targetSentence, input, isAudio = false) {
+  static async analyzePronunciation(targetSentence, input, isAudio = false, userId = null) {
     // New Key: pronunciation_eval_model
     const model = await this.getConfig('pronunciation_eval_model');
 
@@ -755,7 +825,7 @@ class ChatbotService {
             MISTAKE: ...`;
 
       try {
-        response = await this._sendMultimodalToChatbot(prompt, input, effectiveModel);
+        response = await this._sendMultimodalToChatbot(prompt, input, effectiveModel, userId, 'pronunciation_eval_audio');
       } catch (e) {
         console.error("Audio analysis failed, falling back to text (if possible) or error", e);
         throw e;
@@ -779,7 +849,7 @@ class ChatbotService {
             MISTAKE: [word] -> [sounded like/error] -> [advice in Vietnamese]
             MISTAKE: ...`;
 
-      response = await this.sendToChatbot(prompt, '', effectiveModel);
+      response = await this.sendToChatbot(prompt, '', effectiveModel, null, userId, 'pronunciation_eval_text');
     }
 
     try {
@@ -830,8 +900,8 @@ class ChatbotService {
   }
 
   // Helper for Multimodal (Audio)
-  static async _sendMultimodalToChatbot(text, audioBase64, model) {
-    // 1. Get keys (Simplified reuse of sendToChatbot logic concepts)
+  static async _sendMultimodalToChatbot(text, audioData, model, userId = null, feature = 'pronunciation_multimodal') {
+    // 1. Get a key (Simple selection for now, assume Gemini)dToChatbot logic concepts)
     let keys = [];
     try {
       const ApiKey = mongoose.models.ApiKey || require('../models/ApiKey');
@@ -868,7 +938,7 @@ class ChatbotService {
           contents: [{
             parts: [
               { text: text },
-              { inline_data: { mime_type: "audio/webm", data: audioBase64 } } // Using webm as likely format from browser
+              { inline_data: { mime_type: audioData.mimeType || "audio/webm", data: audioData.data } } // Using webm as likely format from browser
             ]
           }]
         };
@@ -882,6 +952,7 @@ class ChatbotService {
         const resultText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (resultText) {
           this._recordSuccess(key);
+          await this._recordUserUsage(userId, true, feature);
           return resultText;
         } else {
           throw new Error("Empty response from native audio model");
@@ -898,7 +969,7 @@ class ChatbotService {
     }
     throw new Error(`Audio analysis failed. Last error: ${lastError?.message}`);
   }
-  static async generateRoleplayResponse(scenario, role, history, userMessage, audioData = null) {
+  static async generateRoleplayResponse(scenario, role, history, userMessage, audioData = null, userId = null) {
     // New Key: roleplay_chat_model
     const model = await this.getConfig('roleplay_chat_model');
 
@@ -919,14 +990,15 @@ class ChatbotService {
     ${historyText}`;
 
     try {
-      return await this.sendToChatbot(userMessage, context, model, audioData);
+      const response = await this.sendToChatbot(userMessage, context, model, audioData, userId, 'roleplay_chat');
+      return response;
     } catch (error) {
       console.error('Roleplay response error:', error);
       throw error;
     }
   }
 
-  static async generateRoleplayReport(scenario, role, history) {
+  static async generateRoleplayReport(scenario, role, history, userId = null) {
     // New Key: roleplay_report_model
     const model = await this.getConfig('roleplay_report_model'); // Use Pro for better analysis
 
@@ -948,7 +1020,7 @@ Task: Provide a feedback report in JSON format.
     Output JSON ONLY.`;
 
     try {
-      const response = await this.sendToChatbot(prompt, '', model);
+      const response = await this.sendToChatbot(prompt, '', model, null, userId, 'roleplay_report');
       // Attempt to extract JSON if wrapped in markdown
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       const jsonStr = jsonMatch ? jsonMatch[0] : response;
@@ -964,9 +1036,7 @@ Task: Provide a feedback report in JSON format.
       };
     }
   }
-  static async generatePracticeSentence(level) {
-    // New Key: pronunciation_gen_model
-    const model = await this.getConfig('pronunciation_gen_model');
+  static async generatePracticeSentence(level, userId = null) {
     const prompt = `Generate a random English sentence for pronunciation practice.
       Level: ${level} (A1, A2, B1, B2, C1, or C2).
       
@@ -978,7 +1048,9 @@ Task: Provide a feedback report in JSON format.
       Output: ONLY the English sentence. No markdown, no quotes, no extra text.`;
 
     try {
-      const response = await this.sendToChatbot(prompt, '', model);
+      // Use pronunciation generation model or default
+      const model = await this.getConfig('pronunciation_gen_model');
+      const response = await this.sendToChatbot(prompt, '', model, null, userId, 'practice_sentence');
       return response.trim().replace(/^"|"$/g, '');
     } catch (error) {
       console.error('Generate sentence error:', error);

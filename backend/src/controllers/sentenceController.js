@@ -20,7 +20,7 @@ exports.submitSentence = async (req, res) => {
     // Get translation reference from AI
     let aiReference = '';
     try {
-      aiReference = await ChatbotService.translateVietnamseToEnglish(vietnameseSentence);
+      aiReference = await ChatbotService.translateVietnamseToEnglish(vietnameseSentence, userId);
     } catch (error) {
       console.error('Translation error:', error);
       aiReference = 'Translation service unavailable';
@@ -31,7 +31,7 @@ exports.submitSentence = async (req, res) => {
     // eslint-disable-next-line no-constant-condition
     if (true) {
       try {
-        hints = await ChatbotService.getSentenceHints(vietnameseSentence, difficulty);
+        hints = await ChatbotService.getSentenceHints(vietnameseSentence, difficulty, userId);
       } catch (error) {
         console.error('Hints error:', error);
         hints = { vocabularyHints: [], grammarStructures: [] };
@@ -49,7 +49,7 @@ exports.submitSentence = async (req, res) => {
 
     try {
       // Pass grammarDifficulty to evaluation
-      const evaluation = await ChatbotService.evaluateTranslation(vietnameseSentence, userAnswer, req.body.grammarDifficulty || difficulty);
+      const evaluation = await ChatbotService.evaluateTranslation(vietnameseSentence, userAnswer, req.body.grammarDifficulty || difficulty, userId);
 
       feedback = {
         score: evaluation.score,
@@ -162,7 +162,8 @@ exports.upgradeSentence = async (req, res) => {
     const upgraded = await ChatbotService.upgradeSentence(
       userAnswer,
       grammarLevel || 'C1',
-      vocabularyLevel || 'C1'
+      vocabularyLevel || 'C1',
+      req.userId
     );
 
     res.json({
@@ -255,7 +256,8 @@ exports.getHints = async (req, res) => {
 
     const hints = await ChatbotService.getSentenceHints(
       vietnameseSentence,
-      difficulty
+      difficulty,
+      req.userId
     );
 
     res.json({
@@ -277,7 +279,7 @@ exports.getHints = async (req, res) => {
 exports.generateRandomSentence = async (req, res) => {
   try {
     const { difficulty = 'easy' } = req.body;
-    // Removed unused userId
+    const userId = req.userId;
 
     // Validate difficulty level
     const validLevels = ['easy', 'medium', 'hard', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -318,7 +320,7 @@ exports.generateRandomSentence = async (req, res) => {
     prompt += ` phù hợp cho ${levelDescription} Chỉ trả lời duy nhất câu tiếng Việt đó, không giải thích gì thêm, không có dấu ngoặc kép.`;
 
     // Call Gemini API to generate sentence
-    const vietnameseSentence = await ChatbotService.sendToChatbot(prompt);
+    const vietnameseSentence = await ChatbotService.sendToChatbot(prompt, '', null, null, userId, 'random_sentence');
 
     res.json({
       success: true,

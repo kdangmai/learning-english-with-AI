@@ -323,11 +323,7 @@ export function SentenceWriting() {
           {translationFeedback && (
             <div className="feedback-card bounce-in">
               <div className="feedback-header">
-                <div className="score-badge" style={{
-                  background: translationFeedback.score >= 80 ? 'linear-gradient(135deg, #22c55e, #16a34a)' :
-                    translationFeedback.score >= 50 ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
-                      'linear-gradient(135deg, #ef4444, #dc2626)'
-                }}>
+                <div className={`score-badge ${translationFeedback.score >= 80 ? 'score-high' : translationFeedback.score >= 50 ? 'score-medium' : 'score-low'}`}>
                   <span className="score-val">{translationFeedback.score}</span>
                   <span className="score-max">/100</span>
                 </div>

@@ -125,17 +125,16 @@ export function SentenceUpgrade() {
 
                         <div className="setting-group">
                             <label>📖 Hướng dẫn</label>
-                            <p style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: '1.6', margin: 0 }}>
+                            <p className="instruction-text">
                                 Nhập câu tiếng Anh của bạn vào ô bên phải. AI sẽ viết lại câu đó với ngữ pháp và từ vựng ở cấp độ bạn chọn.
                             </p>
                         </div>
                     </div>
 
                     <button
-                        className="generate-btn"
+                        className="generate-btn upgrade-generate-btn"
                         onClick={handleUpgrade}
                         disabled={loading || !upgradeInput.trim()}
-                        style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)' }}
                     >
                         {loading ? (
                             <><span className="spinner-sw"></span> Đang xử lý...</>
@@ -163,10 +162,9 @@ export function SentenceUpgrade() {
                                 <span className="shortcut-hint">Ctrl+Enter để nâng cấp</span>
                             </div>
                             <button
-                                className="submit-btn"
+                                className="submit-btn upgrade-submit-btn"
                                 onClick={handleUpgrade}
                                 disabled={loading || !upgradeInput.trim()}
-                                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
                             >
                                 {loading ? (
                                     <><span className="spinner-sw"></span> Đang xử lý...</>
@@ -194,7 +192,7 @@ export function SentenceUpgrade() {
                             {/* Improvements Detail */}
                             {upgradeResult.improvements && upgradeResult.improvements.length > 0 && (
                                 <div style={{ marginTop: 4 }}>
-                                    <h4 style={{ color: '#64748b', marginBottom: '14px', fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+                                    <h4 className="improvements-header">
                                         Chi tiết thay đổi
                                     </h4>
                                     {upgradeResult.improvements.map((imp, idx) => (

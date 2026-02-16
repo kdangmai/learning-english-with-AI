@@ -580,7 +580,7 @@ export function Grammar() {
                                 <p className="feedback-message">{feedback.message}</p>
                                 <div className="explanation">
                                   <p><strong>Đáp án đúng: </strong>
-                                    <span style={{ color: '#16a34a', fontWeight: 'bold' }}>{exercises[currentQuestionIndex].correctAnswer}</span>
+                                    <span className="correct-answer-text">{exercises[currentQuestionIndex].correctAnswer}</span>
                                   </p>
                                   <p><strong>Giải thích: </strong>{exercises[currentQuestionIndex].explanation}</p>
                                 </div>

@@ -1556,7 +1556,11 @@ export function Vocabulary() {
           <div className="folder-modal-content">
             <div className="form-group">
               <label>Chọn thư mục:</label>
-              <select value={targetFolderId} onChange={(e) => setTargetFolderId(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <select
+                value={targetFolderId}
+                onChange={(e) => setTargetFolderId(e.target.value)}
+                className="folder-select"
+              >
                 <option value="">-- Chọn thư mục --</option>
                 {folders.map(f => (
                   <option key={f._id} value={f._id}>{f.name}</option>
@@ -1566,18 +1570,18 @@ export function Vocabulary() {
 
             <div className="divider">HOẶC tạo mới</div>
 
-            <div className="form-group" style={{ display: 'flex', gap: '10px' }}>
+            <div className="form-group folder-creation-row">
               <input
                 type="text"
                 placeholder="Tên thư mục mới"
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
-                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                className="folder-input"
               />
               <button className="action-btn-mini folder-action" onClick={handleCreateFolder}>Tạo</button>
             </div>
 
-            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="folder-modal-footer">
               <button className="start-btn primary-btn" onClick={handleAddToFolder}>Xác nhận</button>
             </div>
           </div>

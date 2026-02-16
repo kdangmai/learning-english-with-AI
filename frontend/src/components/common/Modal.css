@@ -1,5 +1,5 @@
 /* =============================================
-   MODAL - Premium Design v2
+   MODAL - Glassmorphism Design
    ============================================= */
 
 /* Modal Overlay */
@@ -9,8 +9,9 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(6px);
+    background: rgba(0, 0, 0, 0.65);
+    /* Slightly darker to compensate */
+    /* backdrop-filter: blur(8px); REMOVED for performance */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -21,12 +22,14 @@
 
 /* Modal Container */
 .modal-container {
-    background: #ffffff;
+    background: var(--bg-surface-solid, rgba(15, 23, 42, 0.95));
+    /* High opacity */
+    /* backdrop-filter: blur(40px); REMOVED */
     border-radius: 20px;
     box-shadow:
-        0 20px 60px -10px rgba(0, 0, 0, 0.15),
-        0 10px 20px -5px rgba(0, 0, 0, 0.06),
-        0 0 0 1px rgba(0, 0, 0, 0.03);
+        0 24px 80px -12px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
     max-height: 85vh;
     display: flex;
@@ -38,7 +41,7 @@
 
 /* Header - Gradient */
 .modal-header {
-    background: linear-gradient(120deg, #6366f1 0%, #a855f7 100%);
+    background: linear-gradient(120deg, rgba(99, 102, 241, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%);
     padding: 20px 24px;
     color: white;
     display: flex;
@@ -47,6 +50,7 @@
     flex-shrink: 0;
     position: relative;
     overflow: hidden;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .modal-header::after {
@@ -56,7 +60,7 @@
     left: 0;
     right: 0;
     height: 100%;
-    background: linear-gradient(rgba(255, 255, 255, 0.08) 0%, transparent 100%);
+    background: linear-gradient(rgba(255, 255, 255, 0.05) 0%, transparent 100%);
     pointer-events: none;
 }
 
@@ -66,12 +70,12 @@
     font-weight: 700;
     color: white;
     letter-spacing: -0.02em;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .modal-close-btn {
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     color: white;
     width: 32px;
     height: 32px;
@@ -87,10 +91,10 @@
 }
 
 .modal-close-btn:hover {
-    background: white;
-    color: #4f46e5;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
     transform: scale(1.05);
-    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
 }
 
 /* Body */
@@ -98,9 +102,9 @@
     padding: 24px;
     overflow-y: auto;
     font-size: 0.95rem;
-    color: #334155;
+    color: var(--text-secondary);
     line-height: 1.6;
-    background: #ffffff;
+    background: transparent;
 }
 
 /* Form elements inside modal */
@@ -110,35 +114,42 @@
     width: 100%;
     padding: 10px 14px;
     margin-bottom: 14px;
-    border: 1.5px solid #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
-    background: #fafbfe;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
     transition: all 0.2s ease;
     font-size: 0.92rem;
     outline: none;
+    backdrop-filter: blur(8px);
 }
 
 .modal-body input:focus,
 .modal-body select:focus,
 .modal-body textarea:focus {
-    border-color: #6366f1;
-    background: white;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.modal-body input::placeholder,
+.modal-body textarea::placeholder {
+    color: var(--text-muted);
 }
 
 .modal-body label {
     display: block;
     margin-bottom: 6px;
     font-weight: 600;
-    color: #475569;
+    color: var(--text-secondary);
     font-size: 0.85rem;
 }
 
 /* Footer */
 .modal-footer {
     padding: 16px 24px;
-    background: #fafbfe;
-    border-top: 1px solid #f1f5f9;
+    background: rgba(255, 255, 255, 0.03);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
     display: flex;
     justify-content: flex-end;
     gap: 10px;
@@ -188,12 +199,12 @@
 }
 
 .modal-body::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: rgba(255, 255, 255, 0.12);
     border-radius: 3px;
 }
 
 .modal-body::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: rgba(255, 255, 255, 0.2);
 }
 
 /* ---- Responsive ---- */

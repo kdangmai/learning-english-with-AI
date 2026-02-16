@@ -336,7 +336,7 @@ export function Dashboard() {
                     className={`level-item ${isCurrent ? 'current' : ''} ${effectiveUnlocked ? 'unlocked' : 'locked'}`}
                     style={{ '--level-color': LEVEL_COLORS[lvl] }}
                   >
-                    <div className="level-icon-wrapper" style={{ background: effectiveUnlocked ? LEVEL_COLORS[lvl] : '#e2e8f0' }}>
+                    <div className="level-icon-wrapper" style={{ background: effectiveUnlocked ? LEVEL_COLORS[lvl] : 'var(--bg-input)' }}>
                       {effectiveUnlocked ? (lvl === 'legend' ? '👑' : lvl === 'master' ? '💠' : '🔓') : '🔒'}
                     </div>
                     <div className="level-info-row">

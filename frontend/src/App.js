@@ -50,6 +50,18 @@ function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
 
+  /* ====== Theme Logic ====== */
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+
+  useEffect(() => {
+    document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
   useEffect(() => {
     setSidebarOpen(false);
   }, [location]);
@@ -87,6 +99,8 @@ function MainLayout() {
 
   // Group navigation items by section
   let lastSection = null;
+
+
 
   return (
     <div className="app-container">
@@ -180,10 +194,13 @@ function MainLayout() {
           </ul>
 
           {/* Sidebar Footer */}
-          <div className="sidebar-footer">
-            <button className="logout-btn" onClick={handleLogout}>
+          <div className="sidebar-footer" style={{ display: 'flex', gap: '8px', padding: '14px 18px', borderTop: 'var(--border-subtle)' }}>
+            <button className="theme-toggle-btn" onClick={toggleTheme} title={`Chuyển sang chế độ ${theme === 'dark' ? 'Sáng' : 'Tối'}`}>
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+            <button className="logout-btn" onClick={handleLogout} style={{ flex: 1 }}>
               <span>🚪</span>
-              <span>Đăng Xuất</span>
+              <span style={{ marginLeft: '6px' }}>Đăng Xuất</span>
             </button>
             <button
               className={`sidebar-collapse-btn ${isChatbot ? 'chatbot-pos' : 'default-pos'}`}

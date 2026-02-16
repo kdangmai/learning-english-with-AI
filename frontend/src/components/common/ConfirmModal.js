@@ -24,23 +24,23 @@ export default function ConfirmModal({
         danger: {
             color: '#ef4444',
             bg: 'linear-gradient(135deg, #ef4444, #dc2626)',
-            lightBg: '#fef2f2',
+            lightBg: 'rgba(239, 68, 68, 0.12)',
             icon: '⚠️',
-            headerBg: 'linear-gradient(120deg, #ef4444 0%, #f97316 100%)'
+            headerBg: 'linear-gradient(120deg, rgba(239, 68, 68, 0.3) 0%, rgba(249, 115, 22, 0.3) 100%)'
         },
         warning: {
             color: '#f59e0b',
             bg: 'linear-gradient(135deg, #f59e0b, #d97706)',
-            lightBg: '#fffbeb',
+            lightBg: 'rgba(245, 158, 11, 0.12)',
             icon: '❓',
-            headerBg: 'linear-gradient(120deg, #f59e0b 0%, #eab308 100%)'
+            headerBg: 'linear-gradient(120deg, rgba(245, 158, 11, 0.3) 0%, rgba(234, 179, 8, 0.3) 100%)'
         },
         info: {
             color: '#6366f1',
             bg: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-            lightBg: '#eef2ff',
+            lightBg: 'rgba(99, 102, 241, 0.12)',
             icon: 'ℹ️',
-            headerBg: 'linear-gradient(120deg, #6366f1 0%, #8b5cf6 100%)'
+            headerBg: 'linear-gradient(120deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)'
         }
     };
 
@@ -77,7 +77,7 @@ export default function ConfirmModal({
                         </div>
                         <p style={{
                             fontSize: '0.92rem',
-                            color: '#475569',
+                            color: 'var(--text-secondary, #94a3b8)',
                             lineHeight: 1.6,
                             margin: 0,
                             flex: 1
@@ -93,12 +93,12 @@ export default function ConfirmModal({
                         style={{
                             padding: '10px 22px',
                             borderRadius: '10px',
-                            border: '1.5px solid #e2e8f0',
-                            background: '#fff',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            background: 'rgba(255, 255, 255, 0.06)',
                             cursor: 'pointer',
                             fontWeight: 600,
                             fontSize: '0.88rem',
-                            color: '#64748b',
+                            color: 'var(--text-secondary, #94a3b8)',
                             transition: 'all 0.2s'
                         }}
                     >

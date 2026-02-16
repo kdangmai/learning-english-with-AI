@@ -47,7 +47,10 @@ class EmailService {
         tls: { rejectUnauthorized: false },
         // Aggressive timeouts to fail fast if blocked
         connectionTimeout: 10000,
-        socketTimeout: 10000
+        socketTimeout: 10000,
+        // Force IPv4 causing issues in some containerized environments (Render/Docker)
+        // Google SMTP over IPv6 can be flaky from some cloud providers
+        family: 4
       });
 
       this.isEthereal = false;

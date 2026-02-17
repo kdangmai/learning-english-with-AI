@@ -91,6 +91,43 @@ exports.sendMessage = async (req, res) => {
 };
 
 /**
+ * Translate text without saving to history
+ */
+exports.translate = async (req, res) => {
+  try {
+    const { message } = req.body;
+    // Extract text from the prompt format used by frontend if needed, 
+    // or just use the message as is if we update frontend to send raw text.
+    // Frontend sends: `Translate the following to Vietnamese. Output ONLY the translation, nothing else:\n"${text}"`
+
+    // For now, let's just pass the message directly to the AI service.
+    // Using 'translation_model' config if available, or fallback.
+    const model = await ChatbotService.getConfig('translation_model', 'gemini-1.5-flash');
+    const userId = req.userId;
+
+    if (!message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message is required'
+      });
+    }
+
+    const response = await ChatbotService.sendToChatbot(message, '', model, null, userId, 'translate');
+
+    res.json({
+      success: true,
+      response: response
+    });
+  } catch (error) {
+    console.error('Translation error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+/**
  * Get chat history
  */
 exports.getHistory = async (req, res) => {

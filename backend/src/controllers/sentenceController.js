@@ -85,6 +85,9 @@ exports.submitSentence = async (req, res) => {
       gradedAt: new Date()
     });
 
+    // Increment Stat: sentencesPracticed
+    await require('../models/User').updateOne({ _id: userId }, { $inc: { 'stats.sentencesPracticed': 1 } });
+
     await sentence.save();
 
     res.json({

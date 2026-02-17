@@ -180,6 +180,9 @@ exports.submitExercise = async (req, res) => {
       grammar.completedAt = new Date();
     }
 
+    // Increment Stat: grammarExercises
+    await require('../models/User').updateOne({ _id: userId }, { $inc: { 'stats.grammarExercises': 1 } });
+
     await grammar.save();
 
     res.json({

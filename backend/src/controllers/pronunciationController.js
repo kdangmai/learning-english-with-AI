@@ -20,6 +20,9 @@ exports.analyzePronunciation = async (req, res) => {
         const isAudio = !!audioData;
         const result = await ChatbotService.analyzePronunciation(targetSentence, input, isAudio, req.userId);
 
+        // Increment Stat: pronunciationPracticed
+        await require('../models/User').updateOne({ _id: req.userId }, { $inc: { 'stats.pronunciationPracticed': 1 } });
+
         res.json({ success: true, ...result });
     } catch (error) {
         console.error('Pronunciation analysis error:', error);

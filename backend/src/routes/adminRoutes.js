@@ -35,8 +35,6 @@ router.get('/api-keys/stats', adminController.getKeyStats);
 router.get('/config', adminController.getSystemConfig);
 router.put('/config', adminController.updateSystemConfig);
 
-// Server Logs
-router.get('/logs', adminController.getServerLogs);
-router.delete('/logs', adminController.clearServerLogs);
+
 
 module.exports = router;

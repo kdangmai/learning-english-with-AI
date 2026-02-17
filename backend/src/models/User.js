@@ -64,6 +64,15 @@ const userSchema = new mongoose.Schema({
     default: []
   },
 
+  // Detailed Activity Stats for Leaderboard
+  stats: {
+    vocabLearned: { type: Number, default: 0 },
+    roleplaySessions: { type: Number, default: 0 },
+    grammarExercises: { type: Number, default: 0 },
+    sentencesPracticed: { type: Number, default: 0 },
+    pronunciationPracticed: { type: Number, default: 0 }
+  },
+
   // Learning preferences
   preferences: {
     dailyGoal: { type: Number, default: 30 }, // minutes

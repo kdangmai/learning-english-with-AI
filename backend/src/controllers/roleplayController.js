@@ -160,6 +160,9 @@ exports.endSession = async (req, res) => {
             ...reportData
         };
 
+        // Increment Stat: roleplaySessions
+        await require('../models/User').updateOne({ _id: userId }, { $inc: { 'stats.roleplaySessions': 1 } });
+
         await session.save();
 
         res.json({

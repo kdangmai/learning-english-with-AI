@@ -42,6 +42,9 @@ exports.updateWordAction = async (req, res) => {
     if (action === 'learned') {
       word.mastery.status = 'known';
       word.isNewWord = false; // Move out of "New" folder
+
+      // Increment Stat: vocabLearned
+      await require('../models/User').updateOne({ _id: userId }, { $inc: { 'stats.vocabLearned': 1 } });
     }
     // "Từ mới" -> Folder "Từ mới" (Keep it there or move there)
     else if (action === 'add') { // Mapped from frontend "add" button which corresponds to "Từ mới"

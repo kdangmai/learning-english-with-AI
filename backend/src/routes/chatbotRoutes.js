@@ -8,6 +8,9 @@ router.use(auth);
 // POST /api/chatbot/message - Send message to chatbot
 router.post('/message', chatbotController.sendMessage);
 
+// POST /api/chatbot/translate - Translate text
+router.post('/translate', chatbotController.translate);
+
 // GET /api/chatbot/history - Get chat history
 router.get('/history', chatbotController.getHistory);
 

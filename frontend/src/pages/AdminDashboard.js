@@ -66,14 +66,6 @@ export default function AdminDashboard() {
     // Monitoring State
     const [keyStats, setKeyStats] = useState({ stats: {}, userStats: {}, cooldowns: {} });
 
-    // Server Logs State
-    const [serverLogs, setServerLogs] = useState([]);
-    const [logStats, setLogStats] = useState({ info: 0, warn: 0, error: 0, debug: 0 });
-    const [logFilter, setLogFilter] = useState({ level: 'all', source: 'all', search: '' });
-    const [logPage, setLogPage] = useState(1);
-    const [logTotalPages, setLogTotalPages] = useState(1);
-    const [logTotal, setLogTotal] = useState(0);
-
     // Track which key is being tested
     const [testingKeyId, setTestingKeyId] = useState(null);
 
@@ -155,8 +147,6 @@ export default function AdminDashboard() {
             interval = setInterval(fetchKeyStats, 5000);
         } else if (activeTab === 'config') {
             if (!tabDataLoaded.current.config) fetchConfig();
-        } else if (activeTab === 'logs') {
-            fetchServerLogs();
         } else if (activeTab === 'usage') {
             if (!tabDataLoaded.current.users) fetchUsers();
             if (!tabDataLoaded.current.apikeys) fetchApiKeys();
@@ -167,7 +157,7 @@ export default function AdminDashboard() {
             if (interval) clearInterval(interval);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeTab, logPage, logFilter]);
+    }, [activeTab]);
 
     // Computed usage data for the Usage Monitor tab
     const usageData = useMemo(() => {
@@ -657,51 +647,6 @@ export default function AdminDashboard() {
         });
     };
 
-    // --- Server Logs ---
-    const fetchServerLogs = useCallback(async () => {
-        setLoading(true);
-        setLoadingText('Loading server logs...');
-        try {
-            const params = { page: logPage, limit: 50 };
-            if (logFilter.level !== 'all') params.level = logFilter.level;
-            if (logFilter.source !== 'all') params.source = logFilter.source;
-            if (logFilter.search) params.search = logFilter.search;
-
-            const { data } = await adminAPI.getServerLogs(params);
-            if (data.success) {
-                setServerLogs(data.logs);
-                setLogStats(data.stats);
-                setLogTotalPages(data.totalPages);
-                setLogTotal(data.total);
-            }
-        } catch (err) {
-            console.error('Fetch logs error:', err);
-        } finally {
-            setLoading(false);
-        }
-    }, [logPage, logFilter]);
-
-    const handleClearLogs = async () => {
-        setConfirmConfig({
-            title: 'Clear Server Logs',
-            message: 'Are you sure you want to clear all server logs? This action cannot be undone.',
-            variant: 'danger',
-            confirmText: 'Clear All',
-            onConfirm: async () => {
-                try {
-                    const { data } = await adminAPI.clearServerLogs({});
-                    if (data.success) {
-                        success(data.message);
-                        setConfirmConfig(null);
-                        fetchServerLogs();
-                    }
-                } catch (err) {
-                    console.error(err);
-                    error('Failed to clear logs');
-                }
-            }
-        });
-    };
 
     if (!user || user.role !== 'admin') {
         return (
@@ -719,7 +664,6 @@ export default function AdminDashboard() {
         { key: 'config', icon: '🤖', label: 'AI Config', count: null },
         { key: 'apikeys', icon: '🔑', label: 'API Keys', count: apiKeys.length },
         { key: 'usage', icon: '📊', label: 'Usage Monitor', count: null },
-        { key: 'logs', icon: '📋', label: 'Server Logs', count: logTotal || null },
     ];
 
     return (
@@ -1353,136 +1297,14 @@ export default function AdminDashboard() {
                             )}
                         </div>
                     </div>
-                ) : (
-                    /* ==================== SERVER LOGS TAB ==================== */
-                    <div className="logs-section">
-                        {/* Log Stats Cards */}
-                        <div className="log-stats-row">
-                            <div className="log-stat-chip info"><span className="log-stat-dot"></span> Info: {logStats.info}</div>
-                            <div className="log-stat-chip warn"><span className="log-stat-dot"></span> Warn: {logStats.warn}</div>
-                            <div className="log-stat-chip error"><span className="log-stat-dot"></span> Error: {logStats.error}</div>
-                            <div className="log-stat-chip debug"><span className="log-stat-dot"></span> Debug: {logStats.debug}</div>
-                        </div>
-
-                        {/* Log Toolbar */}
-                        <div className="logs-toolbar">
-                            <div className="toolbar-left">
-                                <select
-                                    value={logFilter.level}
-                                    onChange={e => { setLogFilter(f => ({ ...f, level: e.target.value })); setLogPage(1); }}
-                                    className="toolbar-select"
-                                >
-                                    <option value="all">All Levels</option>
-                                    <option value="info">ℹ️ Info</option>
-                                    <option value="warn">⚠️ Warning</option>
-                                    <option value="error">❌ Error</option>
-                                    <option value="debug">🔍 Debug</option>
-                                </select>
-                                <select
-                                    value={logFilter.source}
-                                    onChange={e => { setLogFilter(f => ({ ...f, source: e.target.value })); setLogPage(1); }}
-                                    className="toolbar-select"
-                                >
-                                    <option value="all">All Sources</option>
-                                    <option value="auth">🔐 Auth</option>
-                                    <option value="api">🔗 API</option>
-                                    <option value="system">⚙️ System</option>
-                                    <option value="database">🗄️ Database</option>
-                                    <option value="email">📧 Email</option>
-                                    <option value="ai">🤖 AI</option>
-                                    <option value="admin">🛡️ Admin</option>
-                                </select>
-                                <div className="search-input-wrap">
-                                    <span className="search-icon">🔍</span>
-                                    <input
-                                        type="text"
-                                        placeholder="Search logs..."
-                                        value={logFilter.search}
-                                        onChange={e => { setLogFilter(f => ({ ...f, search: e.target.value })); setLogPage(1); }}
-                                        className="search-input"
-                                    />
-                                </div>
-                            </div>
-                            <div className="toolbar-right">
-                                <span className="user-count-label">{logTotal} logs</span>
-                                <button className="btn-clear-logs" onClick={handleClearLogs} title="Clear All Logs">
-                                    🗑️ Clear
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Log Entries — Terminal Style */}
-                        <div className="log-terminal">
-                            <div className="log-terminal-header">
-                                <span className="terminal-dot red"></span>
-                                <span className="terminal-dot yellow"></span>
-                                <span className="terminal-dot green"></span>
-                                <span className="terminal-title">Server Logs</span>
-                            </div>
-                            <div className="log-terminal-body">
-                                {loading ? (
-                                    <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                                        <div className="loading-spinner"></div>
-                                        <p>{loadingText || 'Loading...'}</p>
-                                    </div>
-                                ) : serverLogs.length === 0 ? (
-                                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-                                        📭 No logs found
-                                    </div>
-                                ) : serverLogs.map(log => (
-                                    <div key={log._id} className={`log-entry log-level-${log.level}`}>
-                                        <div className="log-entry-header">
-                                            <span className={`log-badge log-badge-${log.level}`}>
-                                                {log.level === 'info' ? 'ℹ️' : log.level === 'warn' ? '⚠️' : log.level === 'error' ? '❌' : '🔍'}
-                                                {' '}{log.level.toUpperCase()}
-                                            </span>
-                                            <span className={`log-source-badge log-source-${log.source}`}>{log.source}</span>
-                                            <span className="log-time">{new Date(log.createdAt).toLocaleString()}</span>
-                                            {log.userId && (
-                                                <span className="log-user">👤 {log.userId.username || log.userId.email || 'Unknown'}</span>
-                                            )}
-                                            {log.ip && <span className="log-ip">🌐 {log.ip}</span>}
-                                        </div>
-                                        <div className="log-message">{log.message}</div>
-                                        {log.details && (
-                                            <details className="log-details">
-                                                <summary>Details</summary>
-                                                <pre>{JSON.stringify(log.details, null, 2)}</pre>
-                                            </details>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Pagination */}
-                        {logTotalPages > 1 && (
-                            <div className="log-pagination">
-                                <button
-                                    className="pagination-btn"
-                                    disabled={logPage <= 1}
-                                    onClick={() => setLogPage(p => Math.max(1, p - 1))}
-                                >
-                                    ← Prev
-                                </button>
-                                <span className="pagination-info">Page {logPage} / {logTotalPages}</span>
-                                <button
-                                    className="pagination-btn"
-                                    disabled={logPage >= logTotalPages}
-                                    onClick={() => setLogPage(p => Math.min(logTotalPages, p + 1))}
-                                >
-                                    Next →
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
+                ) : null}
             </div>
 
             {/* Add User Modal */}
-            <Modal
+            < Modal
                 isOpen={showAddUserModal}
-                onClose={() => setShowAddUserModal(false)}
+                onClose={() => setShowAddUserModal(false)
+                }
                 title="👤 Create New User"
                 footer={(
                     <>
@@ -1576,10 +1398,10 @@ export default function AdminDashboard() {
                         </label>
                     </div>
                 </form>
-            </Modal>
+            </Modal >
 
             {/* Edit User Modal */}
-            <Modal
+            < Modal
                 maxWidth="800px"
                 isOpen={!!editUser}
                 onClose={() => setEditUser(null)}
@@ -1703,10 +1525,10 @@ export default function AdminDashboard() {
                         </div>
                     </form>
                 )}
-            </Modal>
+            </Modal >
 
             {/* Edit Key Modal */}
-            <Modal
+            < Modal
                 isOpen={!!editKey}
                 onClose={() => setEditKey(null)}
                 title="✏️ Edit API Key"
@@ -1759,10 +1581,10 @@ export default function AdminDashboard() {
                         </div>
                     </form>
                 )}
-            </Modal>
+            </Modal >
 
             {/* View Usage Details Modal */}
-            <Modal
+            < Modal
                 isOpen={!!viewUsageUser}
                 onClose={() => setViewUsageUser(null)}
                 title={`📊 Monthly Usage: ${viewUsageUser?.username || 'User'}`}
@@ -1846,10 +1668,10 @@ export default function AdminDashboard() {
                         )}
                     </div>
                 )}
-            </Modal>
+            </Modal >
 
             {/* Global Confirm Modal */}
-            <ConfirmModal
+            < ConfirmModal
                 isOpen={!!confirmConfig}
                 onClose={() => setConfirmConfig(null)}
                 onConfirm={confirmConfig?.onConfirm || (() => { })}

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTheme } from '../context/ThemeContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import './AuthForm.css';
@@ -19,6 +20,7 @@ export function RegisterForm() {
 function AuthPage({ initialMode }) {
     const navigate = useNavigate();
     const location = useLocation();
+    const { theme, toggleTheme } = useTheme();
 
     // Check for OTP verification from URL
     const urlParams = new URLSearchParams(location.search);
@@ -279,8 +281,18 @@ function AuthPage({ initialMode }) {
     const switchC1Classes = `switch__container ${isSwitchOn ? 'is-hidden' : ''}`; // "Welcome Back" (Sign In) -> Hidden when mode is Sign In (Switch Right)
     const switchC2Classes = `switch__container ${!isSwitchOn ? 'is-hidden' : ''}`; // "Hello Friend" (Sign Up) -> Hidden when mode is Sign Up (Switch Left)
 
+
+
     return (
         <div className="auth-body">
+            {/* Theme Toggle Button */}
+            <button
+                className="auth-theme-toggle"
+                onClick={toggleTheme}
+                title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+                {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
             <div className="main">
                 {/* Register Form (A) */}
                 <div className={containerAClasses} id="a-container">

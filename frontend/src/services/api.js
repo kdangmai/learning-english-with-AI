@@ -109,9 +109,8 @@ export const sentenceAPI = {
 // Chatbot endpoints
 export const chatbotAPI = {
   sendMessage: (data) => apiClient.post('/chatbot/message', data),
-  translate: (text) => apiClient.post('/chatbot/message', {
-    message: `Translate the following to Vietnamese. Output ONLY the translation, nothing else:\n"${text}"`,
-    conversationHistory: []
+  translate: (text) => apiClient.post('/chatbot/translate', {
+    message: `Translate the following to Vietnamese. Output ONLY the translation, nothing else:\n"${text}"`
   }),
   getHistory: (params) => apiClient.get('/chatbot/history', { params }),
   getSessionHistory: (sessionId) => apiClient.get(`/chatbot/history?sessionId=${sessionId}`),
@@ -163,6 +162,11 @@ export const dashboardAPI = {
   claimMission: (missionId, xp) => apiClient.post('/dashboard/claim-mission', { missionId, xp })
 };
 
+// Leaderboard endpoints
+export const leaderboardAPI = {
+  getLeaderboard: (type = 'exp') => apiClient.get(`/leaderboard?type=${type}`)
+};
+
 // Admin endpoints
 export const adminAPI = {
   // Users
@@ -186,11 +190,7 @@ export const adminAPI = {
 
   // Config
   getConfig: () => apiClient.get('/admin/config'),
-  updateConfig: (key, value) => apiClient.put('/admin/config', { key, value }),
-
-  // Server Logs
-  getServerLogs: (params) => apiClient.get('/admin/logs', { params }),
-  clearServerLogs: (params) => apiClient.delete('/admin/logs', { params })
+  updateConfig: (key, value) => apiClient.put('/admin/config', { key, value })
 };
 
 export default apiClient;

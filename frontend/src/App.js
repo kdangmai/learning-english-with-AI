@@ -1,11 +1,15 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { useUserStore } from './store/store';
 import './App.css';
 
-// Pages (Lazy Loaded)
+// Components
 import { LoginForm, RegisterForm } from './components/AuthForm';
 import { ToastProvider } from './context/ToastContext';
+import PageLoader from './components/PageLoader';
+import AnimatedPage from './components/AnimatedPage';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 // Lazy Components
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -17,18 +21,13 @@ const Chatbot = lazy(() => import('./pages/Chatbot'));
 const Pronunciation = lazy(() => import('./pages/Pronunciation'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Roleplay = lazy(() => import('./pages/Roleplay'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 
-// Loading Component
-const PageLoader = () => (
-  <div className="page-loader-wrapper">
-    <div className="page-loader-spinner"></div>
-    <span className="page-loader-text">Đang tải...</span>
-  </div>
-);
 
 // Navigation items configuration
 const NAV_ITEMS = [
   { path: '/dashboard', icon: '📊', label: 'Dashboard', section: 'main' },
+  { path: '/leaderboard', icon: '🏆', label: 'Bảng Xếp Hạng', section: 'main' },
   { path: '/grammar', icon: '📚', label: 'Học Ngữ Pháp', section: 'learn' },
   { path: '/vocabulary', icon: '📖', label: 'Từ Vựng', section: 'learn' },
   { path: '/sentence-writing', icon: '✍️', label: 'Luyện Dịch Câu', section: 'practice' },
@@ -39,38 +38,41 @@ const NAV_ITEMS = [
 ];
 
 const SECTION_LABELS = {
-  main: null, // no label for main
+  main: null,
   learn: 'Học tập',
   practice: 'Luyện tập',
   ai: 'Trò chuyện AI',
 };
 
+const Leaderboard = React.lazy(() => import('./pages/Leaderboard'));
+
+const AdminRoute = ({ children }) => {
+  const { user } = useUserStore();
+  if (user?.role !== 'admin') {
+    return <Navigate to="/dashboard" />;
+  }
+  return children;
+};
+
 function MainLayout() {
   const { isAuthenticated, user, logout } = useUserStore();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
   /* ====== Theme Logic ====== */
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
-    document.body.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
-
-  useEffect(() => {
+    // Always collapse sidebar on navigation
     setSidebarOpen(false);
   }, [location]);
 
   // Global Focus Page — confirm before reload/close
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      e.preventDefault();
-      e.returnValue = 'Bạn có chắc muốn rời trang? Dữ liệu chưa lưu có thể bị mất.';
+      // Only prompt if on a page where data might be lost (optional refinement)
+      // e.preventDefault();
+      // e.returnValue = 'Bạn có chắc muốn rời trang? Dữ liệu chưa lưu có thể bị mất.';
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -79,9 +81,10 @@ function MainLayout() {
   if (!isAuthenticated) {
     return (
       <Routes>
-        <Route path="/login" element={<LoginForm />} />
-        <Route path="/register" element={<RegisterForm />} />
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="/" element={<AnimatedPage><LandingPage /></AnimatedPage>} />
+        <Route path="/login" element={<AnimatedPage><LoginForm /></AnimatedPage>} />
+        <Route path="/register" element={<AnimatedPage><RegisterForm /></AnimatedPage>} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     );
   }
@@ -97,10 +100,7 @@ function MainLayout() {
   // Get user initials for avatar
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : '?';
 
-  // Group navigation items by section
   let lastSection = null;
-
-
 
   return (
     <div className="app-container">
@@ -212,21 +212,22 @@ function MainLayout() {
           </div>
         </nav>
 
-        <main className="main-content">
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/grammar" element={<Grammar />} />
-              <Route path="/vocabulary" element={<Vocabulary />} />
-              <Route path="/sentence-writing" element={<SentenceWriting />} />
-              <Route path="/sentence-upgrade" element={<SentenceUpgrade />} />
-              <Route path="/pronunciation" element={<Pronunciation />} />
-              <Route path="/chatbot" element={<Chatbot />} />
-              <Route path="/roleplay" element={<Roleplay />} />
-              <Route path="/admin" element={<AdminDashboard />} />
+        <main className="main-content" style={{ position: 'relative' }}>
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
+              <Route path="/dashboard" element={<AnimatedPage><Dashboard /></AnimatedPage>} />
+              <Route path="/grammar" element={<AnimatedPage><Grammar /></AnimatedPage>} />
+              <Route path="/vocabulary" element={<AnimatedPage><Vocabulary /></AnimatedPage>} />
+              <Route path="/sentence-writing" element={<AnimatedPage><SentenceWriting /></AnimatedPage>} />
+              <Route path="/sentence-upgrade" element={<AnimatedPage><SentenceUpgrade /></AnimatedPage>} />
+              <Route path="/pronunciation" element={<AnimatedPage><Pronunciation /></AnimatedPage>} />
+              <Route path="/chatbot" element={<AnimatedPage><Chatbot /></AnimatedPage>} />
+              <Route path="/roleplay" element={<AnimatedPage><Roleplay /></AnimatedPage>} />
+              <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="*" element={<Navigate to="/dashboard" />} />
             </Routes>
-          </Suspense>
+          </AnimatePresence>
         </main>
       </div>
     </div>
@@ -250,23 +251,17 @@ function App() {
   }, [setToken, fetchUser]);
 
   if (loading) {
-    return (
-      <div className="app-splash">
-        <div className="splash-content">
-          <span className="splash-icon">🎓</span>
-          <h2>LearnAI English</h2>
-          <div className="splash-loader"></div>
-        </div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (
     <Router>
       <ToastProvider>
-        <div className="App">
-          <MainLayout />
-        </div>
+        <ThemeProvider>
+          <div className="App">
+            <MainLayout />
+          </div>
+        </ThemeProvider>
       </ToastProvider>
     </Router>
   );

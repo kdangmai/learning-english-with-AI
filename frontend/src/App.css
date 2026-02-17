@@ -666,7 +666,19 @@ select {
   }
 
   .sidebar-toggle-floating.closed-only {
-    bottom: 16px;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    left: auto !important;
+    /* Override other left positioning */
+    z-index: 1000;
+  }
+
+  /* Chatbot page specific position (Top Right) to avoid overlapping chat input */
+  .sidebar-toggle-floating.closed-only.chatbot-pos {
+    bottom: auto !important;
+    top: 12px;
+    right: 16px;
   }
 
   .sidebar-toggle-floating {

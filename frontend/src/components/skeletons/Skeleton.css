@@ -1,0 +1,55 @@
+/* Global Skeleton Animation */
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton {
+    background: var(--bg-card);
+    /* Fallback */
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0.05) 25%,
+            rgba(255, 255, 255, 0.1) 37%,
+            rgba(255, 255, 255, 0.05) 63%);
+    background-size: 400% 100%;
+    animation: skeleton-loading 1.4s ease infinite;
+    border-radius: var(--radius-md);
+}
+
+[data-theme="light"] .skeleton {
+    background: linear-gradient(90deg,
+            #f3f4f6 25%,
+            #e5e7eb 37%,
+            #f3f4f6 63%);
+}
+
+/* Specific Skeleton Shapes */
+.skeleton-circle {
+    border-radius: 50%;
+}
+
+.skeleton-text {
+    height: 1em;
+    border-radius: 4px;
+}
+
+.skeleton-h1 {
+    height: 36px;
+    width: 60%;
+    margin-bottom: 20px;
+}
+
+.skeleton-stat {
+    height: 120px;
+    border-radius: var(--radius-xl);
+}
+
+.skeleton-chart {
+    height: 300px;
+    border-radius: var(--radius-xl);
+}

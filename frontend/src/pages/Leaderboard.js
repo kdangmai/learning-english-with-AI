@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { leaderboardAPI } from '../services/api';
 import { useUserStore } from '../store/store';
 import './Leaderboard.css';
-import { useTheme } from '../context/ThemeContext';
+
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Leaderboard() {
@@ -90,10 +90,11 @@ export default function Leaderboard() {
                 </div>
             ) : (
                 <div className="leaderboard-content">
-                    <AnimatePresence mode='wait'>
+                    <AnimatePresence mode='popLayout'>
                         {/* Podium Section - Using fixed order for layout stability */}
                         {topThree.length > 0 && (
                             <motion.div
+                                key={`podium-${activeTab}`}
                                 className="podium-container"
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -166,9 +167,11 @@ export default function Leaderboard() {
                         {/* Rankings List */}
                         {restList.length > 0 ? (
                             <motion.div
+                                key={`rankings-${activeTab}`}
                                 className="rankings-list"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
                                 transition={{ duration: 0.5, delay: 0.2 }}
                             >
                                 {restList.map((item, idx) => (
@@ -201,7 +204,7 @@ export default function Leaderboard() {
                             </motion.div>
                         ) : (
                             restList.length === 0 && topThree.length === 0 && (
-                                <div className="empty-state">No rankings available yet.</div>
+                                <motion.div key="empty-state" className="empty-state">No rankings available yet.</motion.div>
                             )
                         )}
                     </AnimatePresence>

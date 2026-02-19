@@ -82,7 +82,7 @@ exports.getStatistics = async (req, res) => {
 
     // Vocabulary stats
     const vocabStats = await Vocabulary.aggregate([
-      { $match: { userId: ObjectId(userId) } },
+      { $match: { userId: new ObjectId(userId) } },
       {
         $group: {
           _id: '$mastery.status',
@@ -100,7 +100,7 @@ exports.getStatistics = async (req, res) => {
     // Sentence stats
     const sentenceCount = await Sentence.countDocuments({ userId });
     const avgSentenceScore = await Sentence.aggregate([
-      { $match: { userId: ObjectId(userId) } },
+      { $match: { userId: new ObjectId(userId) } },
       {
         $group: {
           _id: null,

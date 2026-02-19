@@ -143,17 +143,17 @@
   --glass-bg-subtle: rgba(255, 255, 255, 0.03);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-border-strong: rgba(255, 255, 255, 0.18);
-  --glass-blur: 20px;
-  --glass-blur-strong: 40px;
+  --glass-blur: 10px;
+  --glass-blur-strong: 20px;
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
   --text-on-primary: #ffffff;
   --text-accent: #a5b4fc;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
-  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+  --shadow-glass: 0 4px 6px rgba(0, 0, 0, 0.1);
   --border-subtle: 1px solid rgba(255, 255, 255, 0.06);
   --border-light: 1px solid rgba(255, 255, 255, 0.1);
   --border-glass: 1px solid rgba(255, 255, 255, 0.12);
@@ -254,7 +254,7 @@ table {
 }
 
 thead th {
-  background: var(--bg-surface);
+  background: var(--bg-surface-solid, var(--bg-surface));
   padding: 10px 14px;
   text-align: left;
   font-weight: 700;
@@ -266,7 +266,6 @@ thead th {
   position: sticky;
   top: 0;
   z-index: 5;
-  backdrop-filter: blur(12px);
 }
 
 thead th:first-child {
@@ -351,9 +350,8 @@ tbody tr:last-child td {
   font-weight: 600;
   font-size: 0.88rem;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
   white-space: nowrap;
-  backdrop-filter: blur(8px);
 }
 
 .btn:disabled {
@@ -449,7 +447,7 @@ tbody tr:last-child td {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
@@ -536,5 +534,17 @@ tbody tr:last-child td {
 
   .container {
     padding: 0 8px;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

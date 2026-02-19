@@ -8,7 +8,7 @@ import './LandingPage.css';
 const LandingPage = () => {
     const navigate = useNavigate();
     const { theme, toggleTheme } = useTheme();
-    const { isAuthenticated, user } = useUserStore();
+    const { isAuthenticated } = useUserStore();
     const [scrolled, setScrolled] = useState(false);
 
     useEffect(() => {

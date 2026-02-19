@@ -5,28 +5,25 @@ import PageLoader from './PageLoader';
 const pageVariants = {
     initial: {
         opacity: 0,
-        y: 10,
-        scale: 0.99,
-        filter: 'blur(4px)'
+        y: 12,
+        scale: 0.98,
     },
     in: {
         opacity: 1,
         y: 0,
         scale: 1,
-        filter: 'blur(0px)'
     },
     out: {
         opacity: 0,
-        y: -10,
+        y: -8,
         scale: 1.01,
-        filter: 'blur(2px)'
     }
 };
 
 const pageTransition = {
     type: 'tween',
-    ease: [0.25, 0.1, 0.25, 1],
-    duration: 0.3
+    ease: [0.22, 0.68, 0.35, 1],
+    duration: 0.35
 };
 
 const AnimatedPage = ({ children }) => {

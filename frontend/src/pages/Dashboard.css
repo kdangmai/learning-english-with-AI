@@ -299,7 +299,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.22, 0.68, 0.35, 1), box-shadow 0.25s ease;
   position: relative;
   overflow: hidden;
   will-change: transform;
@@ -534,7 +534,7 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
   border: 1px solid rgba(0, 0, 0, 0.04);
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.22, 0.68, 0.35, 1), box-shadow 0.25s ease;
   position: relative;
   will-change: transform;
   contain: layout style;

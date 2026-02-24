@@ -3,6 +3,7 @@ import { useToast } from '../context/ToastContext';
 import './Vocabulary.css';
 
 import Modal from '../components/common/Modal';
+import ConfirmModal from '../components/common/ConfirmModal';
 import { vocabularyAPI, folderAPI } from '../services/api';
 
 const ITEMS_PER_PAGE = 30;
@@ -64,6 +65,11 @@ export function Vocabulary() {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [targetFolderId, setTargetFolderId] = useState('');
+
+  // Confirm Modal States
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showExitGameConfirm, setShowExitGameConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -170,19 +176,28 @@ export function Vocabulary() {
   // Exit confirmation handled globally in App.js MainLayout
 
   const handleExitSession = () => {
-    if (window.confirm("Kết thúc phiên học? Tiến trình (các từ đã học) CHƯA ĐƯỢC LƯU nếu bạn thoát ngay bây giờ.")) {
-      pendingReviewsRef.current = []; // Clear pending reviews (labels as 'not refreshed')
-      setIsLearning(false);
-      setFlashcards([]);
-      setCustomTopic('');
-    }
+    setShowExitConfirm(true);
+  };
+
+  const confirmExitSession = () => {
+    pendingReviewsRef.current = [];
+    setIsLearning(false);
+    setFlashcards([]);
+    setCustomTopic('');
   };
 
   const handleExitGame = () => {
-    if (matchGameComplete || window.confirm("Dừng chơi? Điểm số hiện tại sẽ mất.")) {
+    if (matchGameComplete) {
       setMatchGameActive(false);
       setMatchGameComplete(false);
+    } else {
+      setShowExitGameConfirm(true);
     }
+  };
+
+  const confirmExitGame = () => {
+    setMatchGameActive(false);
+    setMatchGameComplete(false);
   };
 
   const saveSessionProgress = async () => {
@@ -403,11 +418,12 @@ export function Vocabulary() {
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedWords.size === 0) return;
-    const confirmMsg = `Bạn có chắc chắn muốn xóa ${selectedWords.size} từ?`;
-    if (!window.confirm(confirmMsg)) return;
+    setShowDeleteConfirm(true);
+  };
 
+  const confirmBulkDelete = async () => {
     try {
       const response = await vocabularyAPI.bulkDelete(Array.from(selectedWords));
       const data = response.data;
@@ -1586,6 +1602,37 @@ export function Vocabulary() {
             </div>
           </div>
         </Modal>
+        {/* Confirm Modals */}
+        <ConfirmModal
+          isOpen={showExitConfirm}
+          onClose={() => setShowExitConfirm(false)}
+          onConfirm={() => { confirmExitSession(); setShowExitConfirm(false); }}
+          title="Kết thúc phiên học?"
+          message="Tiến trình (các từ đã học) CHƯA ĐƯỢC LƯU nếu bạn thoát ngay bây giờ."
+          confirmText="Thoát"
+          cancelText="Tiếp tục học"
+          variant="warning"
+        />
+        <ConfirmModal
+          isOpen={showExitGameConfirm}
+          onClose={() => setShowExitGameConfirm(false)}
+          onConfirm={() => { confirmExitGame(); setShowExitGameConfirm(false); }}
+          title="Dừng chơi?"
+          message="Điểm số hiện tại sẽ mất."
+          confirmText="Dừng"
+          cancelText="Tiếp tục chơi"
+          variant="warning"
+        />
+        <ConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={() => { confirmBulkDelete(); setShowDeleteConfirm(false); }}
+          title="Xóa từ vựng?"
+          message={`Bạn có chắc chắn muốn xóa ${selectedWords.size} từ đã chọn? Hành động này không thể hoàn tác.`}
+          confirmText="Xóa"
+          cancelText="Hủy"
+          variant="danger"
+        />
       </div>
     </div>
   );

@@ -254,7 +254,7 @@ export function SentenceWriting() {
                 <button className="hint-btn" onClick={handleGetHints} disabled={isLoading || !!hints}>
                   💡 {hints ? 'Đã hiện gợi ý' : 'Gợi ý từ vựng'}
                 </button>
-                <button className="regenerate-btn" onClick={handleGenerateSentence} disabled={isGenerating}>
+                <button className="regenerate-btn" onClick={handleGenerateSentence} disabled={isGenerating || isLoading}>
                   🔄 Câu khác
                 </button>
               </div>
@@ -363,7 +363,7 @@ export function SentenceWriting() {
               </div>
 
               <div className="feedback-actions">
-                <button className="try-again-btn" onClick={() => {
+                <button className="try-again-btn" disabled={isLoading || isGenerating} onClick={() => {
                   setTranslationAnswer('');
                   setTranslationFeedback(null);
                   setHints(null);
@@ -371,7 +371,7 @@ export function SentenceWriting() {
                 }}>
                   Viết lại 🔄
                 </button>
-                <button className="next-sentence-btn" onClick={handleGenerateSentence}>
+                <button className="next-sentence-btn" disabled={isLoading || isGenerating} onClick={handleGenerateSentence}>
                   Câu tiếp theo ➡️
                 </button>
               </div>

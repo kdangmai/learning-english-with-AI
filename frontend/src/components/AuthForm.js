@@ -30,6 +30,7 @@ function AuthPage({ initialMode }) {
     // isSwitchOn = true  => Switch on Right => Login Mode
     // isSwitchOn = false => Switch on Left => Register Mode
     const [isSwitchOn, setIsSwitchOn] = useState(false);
+    const [isAnimating, setIsAnimating] = useState(false);
 
     // Sync state with prop if it changes
     useEffect(() => {
@@ -45,6 +46,8 @@ function AuthPage({ initialMode }) {
     const toggleSwitch = () => {
         const newState = !isSwitchOn;
         setIsSwitchOn(newState);
+        setIsAnimating(true);
+        setTimeout(() => setIsAnimating(false), 1250);
 
         // Update URL without full reload
         window.history.pushState(null, '', newState ? '/login' : '/register');
@@ -271,7 +274,7 @@ function AuthPage({ initialMode }) {
     // is-txl to containers
     // is-z200 to b-container (Login)
 
-    const switchClasses = `switch ${isSwitchOn ? 'is-txr' : ''}`;
+    const switchClasses = `switch ${isSwitchOn ? 'is-txr' : ''} ${isAnimating ? 'is-gx' : ''}`;
     const circleClasses = `switch__circle ${isSwitchOn ? 'is-txr' : ''}`;
     const circleTClasses = `switch__circle switch__circle--t ${isSwitchOn ? 'is-txr' : ''}`;
 

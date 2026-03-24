@@ -224,16 +224,23 @@ exports.getApiKeys = async (req, res) => {
 
 exports.addApiKey = async (req, res) => {
     try {
-        const { key, name } = req.body;
+        const { key, name, provider } = req.body;
         if (!key) {
             return res.status(400).json({ success: false, message: 'API Key is required' });
         }
 
+        const resolvedProvider = ['gemini', 'openai', 'openrouter'].includes(provider) ? provider : 'gemini';
+        const defaultModel = resolvedProvider === 'openrouter'
+            ? 'google/gemini-2.5-flash-lite'
+            : resolvedProvider === 'openai'
+                ? 'gpt-4o-mini'
+                : 'gemini-2.5-flash';
+
         const newKey = new ApiKey({
             key,
             name: name || 'Untitled Key',
-            model: 'gemini-2.5-flash', // Default as UI no longer sends this
-            provider: 'gemini' // Default as user request
+            model: defaultModel,
+            provider: resolvedProvider
         });
 
         await newKey.save();
@@ -267,10 +274,17 @@ exports.updateApiKey = async (req, res) => {
 
 exports.importApiKeys = async (req, res) => {
     try {
-        const { keys } = req.body; // Array of { name, key }
+        const { keys, provider } = req.body; // Array of { name, key }
         if (!Array.isArray(keys) || keys.length === 0) {
             return res.status(400).json({ success: false, message: 'No keys provided' });
         }
+
+        const resolvedProvider = ['gemini', 'openai', 'openrouter'].includes(provider) ? provider : 'gemini';
+        const defaultModel = resolvedProvider === 'openrouter'
+            ? 'google/gemini-2.5-flash-lite'
+            : resolvedProvider === 'openai'
+                ? 'gpt-4o-mini'
+                : 'gemini-2.5-flash';
 
         let added = 0;
         let errors = 0;
@@ -284,8 +298,8 @@ exports.importApiKeys = async (req, res) => {
             await new ApiKey({
                 name: k.name || 'Imported Key',
                 key: k.key,
-                model: 'gemini-2.5-flash',
-                provider: 'gemini'
+                model: defaultModel,
+                provider: resolvedProvider
             }).save();
             added++;
         }
@@ -467,7 +481,8 @@ exports.getSystemConfig = async (req, res) => {
         res.json({
             success: true,
             config: { ...defaults, ...config },
-            models: ChatbotService.AVAILABLE_MODELS
+            models: ChatbotService.AVAILABLE_MODELS,
+            openRouterModels: ChatbotService.OPENROUTER_MODELS
         });
     } catch (error) {
         console.error('Get config error:', error);

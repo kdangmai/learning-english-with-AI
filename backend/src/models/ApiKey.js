@@ -20,7 +20,7 @@ const apiKeySchema = new mongoose.Schema({
     },
     provider: {
         type: String,
-        enum: ['gemini', 'openai'],
+        enum: ['gemini', 'openai', 'openrouter'],
         default: 'gemini'
     },
     createdAt: {

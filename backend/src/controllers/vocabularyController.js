@@ -582,20 +582,46 @@ exports.generateFlashcards = async (req, res) => {
   }
 };
 
+const POS_NORMALIZE_MAP = {
+  'adj': 'adjective', 'adj.': 'adjective',
+  'adv': 'adverb', 'adv.': 'adverb',
+  'prep': 'preposition', 'prep.': 'preposition',
+  'conj': 'conjunction', 'conj.': 'conjunction',
+  'n': 'noun', 'n.': 'noun',
+  'v': 'verb', 'v.': 'verb',
+  'phrasal verbs': 'phrasal verb', 'phrasal_verb': 'phrasal verb',
+  'collocations': 'collocation',
+  'idioms': 'idiom'
+};
+
+const VALID_POS = ['noun', 'verb', 'adjective', 'adverb', 'preposition', 'conjunction', 'collocation', 'phrasal verb', 'idiom'];
+
+function normalizePartOfSpeech(pos) {
+  if (!pos) return 'noun';
+  const lower = pos.toLowerCase().trim();
+  return POS_NORMALIZE_MAP[lower] || (VALID_POS.includes(lower) ? lower : 'noun');
+}
+
 /**
  * Start learning - Generate vocabulary words for a topic using Gemini API
  */
 exports.startLearning = async (req, res) => {
   try {
-    const { topic, count = 10, category = 'Daily', partOfSpeech = 'mix', level = 'B1' } = req.body;
+    let { topic, count, category = 'Daily', partOfSpeech = 'mix', level = 'Mixed' } = req.body;
     const userId = req.userId;
+
+    // Fix: count could be parsed as string, default to 10 if missing
+    const requestedCount = parseInt(count) || 10;
+    // Keep count bounded between 3 and 20
+    const parsedCount = Math.min(Math.max(requestedCount, 3), 20);
 
     // Fetch existing words to prevent duplicates
     const existingWords = await Vocabulary.find({ userId }).select('word');
     const existingWordSet = new Set(existingWords.map(w => w.word.toLowerCase()));
 
     // Request a buffer using count (Gemini sometimes generates duplicates or simple words we filter out)
-    const bufferCount = Math.max(Math.ceil(count * 1.5), 10);
+    // Removed the `Math.max(..., 10)` so if user asks for 5, we only ask AI for 8, not 10.
+    const bufferCount = Math.ceil(parsedCount * 1.5);
 
     let posInstruction = '';
     if (partOfSpeech !== 'mix') {
@@ -610,16 +636,22 @@ exports.startLearning = async (req, res) => {
     }
 
     // Prompt for Gemini API
-    const prompt = `Hãy tạo danh sách ${bufferCount} từ vựng tiếng Anh CHÍNH XÁC về chủ đề "${topic}".
+    const prompt = `Hãy tạo danh sách ${bufferCount} từ vựng tiếng Anh THUỘC CHUYÊN NGÀNH/LĨNH VỰC "${topic}".
     
-    Yêu cầu quan trọng:
-    - Trình độ CEFR mục tiêu: ${level}. (Hãy chọn từ vựng phù hợp sát với trình độ ${level}).
+    ⚠️ NGUYÊN TẮC QUAN TRỌNG NHẤT:
+    - Từ vựng PHẢI là thuật ngữ/từ chuyên môn THỰC SỰ ĐƯỢC SỬ DỤNG trong lĩnh vực "${topic}".
+    - KHÔNG tạo từ vựng chung chung chỉ "có liên quan gián tiếp" hoặc "gợi liên tưởng" đến chủ đề.
+    - Ví dụ: Nếu chủ đề là "machine learning", các từ ĐÚNG: "algorithm", "neural network", "dataset", "overfitting", "gradient descent". Các từ SAI: "explore", "develop", "discover", "unknown", "vague".
+    - Nếu chủ đề là lĩnh vực chuyên môn hoặc kỹ thuật, hãy ưu tiên thuật ngữ chuyên ngành (technical terms/jargon) của lĩnh vực đó.
+    
+    Yêu cầu bổ sung:
+    - Trình độ CEFR mục tiêu: ${level}. (Chọn từ vựng phù hợp sát với trình độ ${level}, nhưng vẫn phải đúng chuyên ngành).
     - ${categoryInstruction}
     - Loại từ mong muốn: ${partOfSpeech === 'mix' ? 'Đa dạng (Danh/Động/Tính/Trạng)' : partOfSpeech}.
 
     Yêu cầu chung:
-    1. Đa dạng hóa từ vựng.
-    2. Tránh từ quá hiển nhiên nếu chủ đề nâng cao.
+    1. Đa dạng hóa từ vựng nhưng PHẢI thuộc đúng lĩnh vực "${topic}".
+    2. Nếu chủ đề nâng cao/chuyên ngành, hãy bao gồm cả thuật ngữ kỹ thuật cốt lõi.
     3. Định dạng JSON bắt buộc (danh sách phẳng):
     [
       {
@@ -635,8 +667,7 @@ exports.startLearning = async (req, res) => {
     ${posInstruction}`;
 
     // Call Gemini API
-    // Call Gemini API
-    const response = await ChatbotService.sendToChatbot(prompt, '', null, null, userId, 'vocabulary_gen');
+    const response = await ChatbotService.sendToChatbot(prompt, '', null, null, userId, 'vocabulary_gen', 60000);
 
     // Parse JSON response
     let vocabularyData = [];
@@ -652,10 +683,10 @@ exports.startLearning = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Failed to parse AI response' });
     }
 
-    // Filter duplicates and save until we reach 'count'
+    // Filter duplicates and save until we reach 'parsedCount'
     const savedWords = [];
     for (const vocabItem of vocabularyData) {
-      if (savedWords.length >= count) break; // Stop if we have enough
+      if (savedWords.length >= parsedCount) break; // Stop if we have enough
 
       const wordLower = vocabItem.word ? vocabItem.word.toLowerCase().trim() : '';
       if (!wordLower || existingWordSet.has(wordLower)) {
@@ -673,15 +704,20 @@ exports.startLearning = async (req, res) => {
         example: vocabItem.example || '',
         topic,
         level: vocabItem.level || 'A1',
-        partOfSpeech: vocabItem.partOfSpeech || 'noun',
+        partOfSpeech: normalizePartOfSpeech(vocabItem.partOfSpeech),
         isNewWord: true,
         mastery: { status: 'unknown', nextReviewAt: new Date() },
         srs: { step: 0, interval: 0, easeFactor: 2.5, dueDate: new Date(), lastReviewed: null }
       });
 
-      const saved = await newWord.save();
-      existingWordSet.add(wordLower);
-      savedWords.push(saved);
+      try {
+        const saved = await newWord.save();
+        existingWordSet.add(wordLower);
+        savedWords.push(saved);
+      } catch (saveErr) {
+        console.warn(`[Vocab] Skipping word "${wordLower}" due to save error: ${saveErr.message}`);
+        continue;
+      }
     }
 
     res.json({

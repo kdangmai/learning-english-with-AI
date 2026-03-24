@@ -44,10 +44,41 @@ const AVAILABLE_MODELS = [
   { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Deprecating March 2026)' }
 ];
 
+// OpenRouter Models - Available via OpenRouter API
+const OPENROUTER_MODELS = [
+  // --- Google Gemini via OpenRouter ---
+  { value: 'google/gemini-2.5-flash', label: 'OR: Gemini 2.5 Flash' },
+  { value: 'google/gemini-2.5-pro', label: 'OR: Gemini 2.5 Pro' },
+  { value: 'google/gemini-2.5-flash-lite', label: 'OR: Gemini 2.5 Flash-Lite' },
+
+  // --- OpenAI via OpenRouter ---
+  { value: 'openai/gpt-4o', label: 'OR: GPT-4o' },
+  { value: 'openai/gpt-4o-mini', label: 'OR: GPT-4o Mini' },
+  { value: 'openai/gpt-4.1-mini', label: 'OR: GPT-4.1 Mini' },
+  { value: 'openai/gpt-4.1-nano', label: 'OR: GPT-4.1 Nano' },
+
+  // --- Anthropic via OpenRouter ---
+  { value: 'anthropic/claude-sonnet-4', label: 'OR: Claude Sonnet 4' },
+  { value: 'anthropic/claude-3.5-haiku', label: 'OR: Claude 3.5 Haiku' },
+
+  // --- Meta Llama via OpenRouter ---
+  { value: 'meta-llama/llama-4-maverick', label: 'OR: Llama 4 Maverick' },
+  { value: 'meta-llama/llama-4-scout', label: 'OR: Llama 4 Scout' },
+
+  // --- DeepSeek via OpenRouter ---
+  { value: 'deepseek/deepseek-chat-v3-0324', label: 'OR: DeepSeek V3' },
+  { value: 'deepseek/deepseek-r1', label: 'OR: DeepSeek R1' },
+
+  // --- Qwen via OpenRouter ---
+  { value: 'qwen/qwen3-235b-a22b', label: 'OR: Qwen3 235B' },
+  { value: 'qwen/qwen3-30b-a3b', label: 'OR: Qwen3 30B' },
+];
+
 class ChatbotService {
 
   static get DEFAULT_MODELS() { return DEFAULT_MODELS; }
   static get AVAILABLE_MODELS() { return AVAILABLE_MODELS; }
+  static get OPENROUTER_MODELS() { return OPENROUTER_MODELS; }
 
   /**
    * Helper: Get Config for a feature
@@ -220,7 +251,10 @@ class ChatbotService {
    * Send message to the configured Chatbot API (Gemini or OpenAI).
    * Implements: Round Robin, Smart Cooldown, and Fallback.
    */
-  static async sendToChatbot(message, context = '', preferredModel = null, audioData = null, userId = null, feature = 'general') {
+  static async sendToChatbot(message, context = '', preferredModel = null, audioData = null, userId = null, feature = 'general', timeoutMs = 30000) {
+    // Detect if the preferredModel is an OpenRouter model (format: provider/model-name)
+    const isOpenRouterModel = preferredModel && preferredModel.includes('/');
+
     // 1. Get all available keys
     let keys = [];
     try {
@@ -236,6 +270,25 @@ class ChatbotService {
       }
     } catch (e) {
       console.error('[ChatbotService] Failed to fetch DB keys:', e);
+    }
+
+    // If the model is an OpenRouter model, filter to only use OpenRouter keys
+    if (isOpenRouterModel) {
+      const orKeys = keys.filter(k => k.provider === 'openrouter');
+      if (orKeys.length > 0) {
+        keys = orKeys;
+      } else {
+        console.warn('[ChatbotService] OpenRouter model requested but no OpenRouter keys available. Falling back to all keys with Gemini model.');
+        // Fallback: reset model to gemini default
+        keys = keys.map(k => ({ ...k, model: k.provider === 'gemini' ? 'gemini-2.5-flash-lite' : k.model }));
+      }
+    } else {
+      // For non-OpenRouter models, prefer matching provider keys
+      const geminiKeys = keys.filter(k => k.provider === 'gemini');
+      const otherKeys = keys.filter(k => k.provider !== 'gemini' && k.provider !== 'openrouter');
+      if (geminiKeys.length > 0) {
+        keys = [...geminiKeys, ...otherKeys];
+      }
     }
 
     if (keys.length === 0) throw new Error('No API keys available.');
@@ -264,27 +317,22 @@ class ChatbotService {
     // Increment global index for next call
     this._roundRobinIndex++;
 
-    console.log(`[ChatbotService] Processing with ${rotatedKeys.length} keys (Strategy: Round Robin Fallback).`);
+    console.log(`[ChatbotService] Processing with ${rotatedKeys.length} keys (Strategy: Round Robin Fallback/Racing).`);
 
-    // 4. Loop through keys (Fallback Strategy)
     let lastError = null;
 
-    for (let i = 0; i < rotatedKeys.length; i++) {
-      const currentKey = rotatedKeys[i];
+    const tryKey = async (currentKey) => {
       const { key, model, name, provider } = currentKey;
 
-      // Double check stats initialization
       if (!this._keyStats[key]) this._keyStats[key] = { uses: 0, failures: 0, lastUsed: 0 };
-
       console.log(`[ChatbotService] Trying key "${name}" (${provider}, ${model}) [Uses: ${this._keyStats[key].uses}]...`);
 
       try {
         let resultText = '';
 
-        if (provider === 'openai') {
-          if (audioData) throw new Error("OpenAI provider does not support direct audio input in this service.");
+        if (provider === 'openai' || provider === 'openrouter') {
+          if (audioData) throw new Error(`${provider} provider does not support direct audio input in this service.`);
 
-          // ... (keep openai logic same) ...
           const payload = {
             model: model,
             messages: [
@@ -293,16 +341,24 @@ class ChatbotService {
             ]
           };
 
+          const apiUrl = provider === 'openrouter'
+            ? 'https://openrouter.ai/api/v1/chat/completions'
+            : 'https://api.openai.com/v1/chat/completions';
+
+          const headers = {
+            'Authorization': `Bearer ${key}`,
+            'Content-Type': 'application/json'
+          };
+
+          if (provider === 'openrouter') {
+            headers['HTTP-Referer'] = 'https://learn-english-ai.app';
+            headers['X-OpenRouter-Title'] = 'Learn English With AI';
+          }
+
           const response = await axios.post(
-            'https://api.openai.com/v1/chat/completions',
+            apiUrl,
             payload,
-            {
-              headers: {
-                'Authorization': `Bearer ${key}`,
-                'Content-Type': 'application/json'
-              },
-              timeout: 30000
-            }
+            { headers, timeout: timeoutMs }
           );
           resultText = response.data?.choices?.[0]?.message?.content;
         } else {
@@ -329,7 +385,7 @@ class ChatbotService {
           const response = await axios.post(
             `${API_URL}?key=${key}`,
             { contents: [{ parts }] },
-            { timeout: 30000 }
+            { timeout: timeoutMs }
           );
           resultText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
         }
@@ -337,7 +393,6 @@ class ChatbotService {
         if (resultText) {
           console.log(`[ChatbotService] Key "${name}" succeeded.`);
           this._recordSuccess(key);
-          await this._recordUserUsage(userId, true, feature); // Record user success with feature
           return resultText;
         } else {
           console.warn(`[ChatbotService] Key "${name}" returned no content.`);
@@ -345,29 +400,42 @@ class ChatbotService {
         }
 
       } catch (error) {
-        lastError = error;
         const status = error.response?.status;
         const errorData = error.response?.data;
         const errorMessage = errorData?.error?.message || error.message;
 
         console.error(`[ChatbotService] Key "${name}" (${provider}) failed. Status: ${status}. Message: ${errorMessage}`);
 
-        // Handle Rate Limits (429) -> Smart Cooldown
         if (status === 429) {
           this._recordFailure(key, true);
-          // Optionally: Don't deactivate in DB, just Cooldown in RAM (as per user request)
-          // But if we want to be safe, we can still deactivate if failures > X? 
-          // For now, let's trust the Cooldown.
+        } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+          this._cooldowns[key] = Date.now() + 120000;
+          console.warn(`[ChatbotService] ⏳ Key "...${key.slice(-4)}" on COOLDOWN 120s (timeout).`);
+          this._recordFailure(key, false);
         } else {
           this._recordFailure(key, false);
         }
+        
+        throw new Error(errorMessage);
+      }
+    };
 
-        continue; // Try next key
+    while (rotatedKeys.length > 0) {
+      // Race 2 keys simultaneously to reduce wait time
+      const raceBatch = rotatedKeys.splice(0, 2);
+      const racePromises = raceBatch.map(k => tryKey(k));
+      
+      try {
+        const result = await Promise.any(racePromises);
+        await this._recordUserUsage(userId, true, feature);
+        return result;
+      } catch (aggregateError) {
+        lastError = aggregateError.errors ? aggregateError.errors[0] : aggregateError;
       }
     }
 
     await this._recordUserUsage(userId, false, feature); // Record user failure if all keys failed
-    throw new Error(`All active API keys failed. Last error: ${lastError?.message}`);
+    throw new Error(`All active API keys failed. Last error: ${lastError?.message || lastError}`);
   }
 
   static async testKey(key, model = 'gemini-2.5-flash', provider = 'gemini') {
@@ -381,18 +449,29 @@ class ChatbotService {
           { timeout: 10000 }
         );
         content = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      } else if (provider === 'openai') {
+      } else if (provider === 'openai' || provider === 'openrouter') {
+        const apiUrl = provider === 'openrouter'
+          ? 'https://openrouter.ai/api/v1/chat/completions'
+          : 'https://api.openai.com/v1/chat/completions';
+
+        const testModel = provider === 'openrouter'
+          ? (model || 'google/gemini-2.5-flash-lite')
+          : (model || 'gpt-4o-mini');
+
+        const headers = { 'Authorization': `Bearer ${key}` };
+        if (provider === 'openrouter') {
+          headers['HTTP-Referer'] = 'https://learn-english-ai.app';
+          headers['X-OpenRouter-Title'] = 'Learn English With AI';
+        }
+
         const response = await axios.post(
-          'https://api.openai.com/v1/chat/completions',
+          apiUrl,
           {
-            model: model,
+            model: testModel,
             messages: [{ role: 'user', content: "Hello" }],
             max_tokens: 5
           },
-          {
-            headers: { 'Authorization': `Bearer ${key}` },
-            timeout: 10000
-          }
+          { headers, timeout: 15000 }
         );
         content = response.data?.choices?.[0]?.message?.content;
       }
@@ -401,7 +480,7 @@ class ChatbotService {
         throw new Error("API responded but returned no content.");
       }
 
-      return { success: true, message: "Valid API Key (Content received)" };
+      return { success: true, message: `Valid ${provider.toUpperCase()} API Key (Content received)` };
     } catch (error) {
       const status = error.response?.status;
       console.error("Test Key Failed:", error.response?.data || error.message);
@@ -792,37 +871,28 @@ class ChatbotService {
     // If input is audio base64, we need native audio model if available, or just use the config model (assuming it supports audio like 1.5-flash or 2.0-flash)
     // Map the placeholder 'gemini-2.5-flash-native' to a real working Native Audio model (currently gemini-2.0-flash-exp)
     // If user selected generic "gemini-2.5-flash-native", use 2.0-flash-exp.
-    // If user selected explicit preview string, use 2.0-flash-exp.
+    // If user selected explicit preview string, use 2.5-flash.
     const effectiveModel = isAudio
-      ? (model === 'gemini-2.5-flash-native' || model === 'gemini-2.5-flash-native-audio-preview-12-2025' ? 'gemini-2.0-flash-exp' : model)
-      : (model === 'gemini-2.5-flash-native' || model === 'gemini-2.5-flash-native-audio-preview-12-2025' ? 'gemini-2.5-flash' : model);
+      ? (model === 'gemini-2.5-flash-native' || model === 'gemini-2.5-flash-native-audio-preview-12-2025' || model === 'gemini-2.0-flash-exp' ? 'gemini-2.5-flash' : model)
+      : (model === 'gemini-2.5-flash-native' || model === 'gemini-2.5-flash-native-audio-preview-12-2025' || model === 'gemini-2.0-flash-exp' ? 'gemini-2.5-flash' : model);
 
     let prompt;
     let response;
 
     if (isAudio) {
-      prompt = `Act as an expert linguistic examiner for an IELTS Speaking test (Band 9.0 standard).
-            Analyze the pronunciation of the following English sentence based on the audio provided.
-            
-            Target Sentence: "${targetSentence}"
-            
-            Task:
-            1. Transcribe EXACTLY what you hear (transcribe phonetically if needed to show errors).
-            2. Evaluate based on IELTS Speaking criteria (Pronunciation):
-               - Individual Sounds: Articulation of vowels and consonants.
-               - Word Stress: Correct emphasis on syllables.
-               - Sentence Stress & Rhythm: Natural flow and emphasis.
-               - Intonation: Appropriate rise/fall for meaning.
-               - Connected Speech: Linking, elision, assimilation.
-            3. Score strictly from 0 to 100 (where 90+ is Band 9 native-like).
-            4. Provide feedback in Vietnamese, professional and detailed.
-            
-            Output Format (text only):
-            TRANSCRIPT: [What user said]
-            SCORE: [number]
-            FEEDBACK: [Vietnamese feedback resembling an IELTS examiner's comment]
-            MISTAKE: [word] -> [sounded like] -> [advice in Vietnamese on how to fix mouth shape/tongue position]
-            MISTAKE: ...`;
+      prompt = `Bạn là giáo viên tiếng Anh chuyên về phát âm. Phân tích file âm thanh người học gửi lên và đưa ra nhận xét chi tiết bằng tiếng Việt, phù hợp cho người Việt Nam học tiếng Anh.
+
+Câu người học vừa đọc: "${targetSentence}"
+
+Mục tiêu: giúp họ phát âm rõ ràng, dễ hiểu. Phản hồi ngắn gọn, dễ hiểu, không dùng thuật ngữ ngôn ngữ học phức tạp. Luôn khích lệ nhẹ nhàng, không chê bai.
+
+Định dạng đầu ra (text thuần, KHÔNG dùng markdown, KHÔNG dùng ** hay #):
+TRANSCRIPT: [ghi lại chính xác những gì nghe được, phiên âm IPA nếu cần]
+SCORE: [số 0-100, 90+ = gần như bản ngữ]
+OVERVIEW: [2-3 câu nhận xét chung, ví dụ: "Phát âm nhìn chung dễ nghe, tốc độ vừa phải, nhưng còn một số âm chưa rõ."]
+MISTAKES: [Liệt kê 3-5 lỗi phát âm quan trọng nhất. Mỗi lỗi gồm: tên lỗi, ví dụ cụ thể trong câu, và cách sửa rất đơn giản (vị trí lưỡi, môi, hơi thở). Chú ý các lỗi phổ biến của người Việt: không phát âm /s/ cuối từ, nhầm /θ/ với /t/, nhầm /ð/ với /d/, nhầm /ɪ/ với /iː/, trọng âm sai, ngữ điệu đều.]
+PRACTICE: [Chọn 3-7 từ/cụm trong câu người học vừa đọc mà dễ phát âm sai. Mỗi từ ghi phiên âm IPA + hướng dẫn cách đọc bằng tiếng Việt đơn giản. Nếu có lỗi trọng âm, ghi rõ chỗ nhấn.]
+HOMEWORK: [1-3 bài tập ngắn dựa trên lỗi cụ thể của người học, ví dụ: "Đọc từ X 10 lần", "Tự ghi âm lại câu Y, chú ý âm Z"]`;
 
       try {
         response = await this._sendMultimodalToChatbot(prompt, input, effectiveModel, userId, 'pronunciation_eval_audio');
@@ -833,27 +903,23 @@ class ChatbotService {
     } else {
       // Text based analysis (legacy)
       const spokenSentence = input;
-      prompt = `Analyze this English pronunciation attempt.
-            Target Sentence: "${targetSentence}"
-            Transcribed Spoken Text: "${spokenSentence}"
+      prompt = `Bạn là giáo viên tiếng Anh chuyên về phát âm. Phân tích bài phát âm dựa trên văn bản đã nhận diện.
 
-            Task:
-            1. Compare meaning and phonetics (inferred).
-            2. Score from 0 to 100.
-            3. Provide encouraging feedback in Vietnamese.
-            4. Identify specific mistakes if any.
+Câu mẫu: "${targetSentence}"
+Câu người học đọc (nhận diện): "${spokenSentence}"
 
-            Output Format (text only):
-            SCORE: [number]
-            FEEDBACK: [Vietnamese feedback]
-            MISTAKE: [word] -> [sounded like/error] -> [advice in Vietnamese]
-            MISTAKE: ...`;
+Định dạng đầu ra (text thuần, KHÔNG markdown):
+SCORE: [số 0-100]
+OVERVIEW: [2-3 câu nhận xét chung bằng tiếng Việt]
+MISTAKES: [3-5 lỗi quan trọng, mỗi lỗi có ví dụ + cách sửa đơn giản]
+PRACTICE: [3-7 từ/cụm nên luyện thêm + hướng dẫn đọc]
+HOMEWORK: [1-3 bài tập ngắn]`;
 
       response = await this.sendToChatbot(prompt, '', effectiveModel, null, userId, 'pronunciation_eval_text');
     }
 
     try {
-      const result = { score: 0, feedback: "", mistakes: [], transcript: "" };
+      const result = { score: 0, transcript: "", overview: "", mistakes: "", practice: "", homework: "" };
 
       console.log("[ChatbotService] Pronunciation Raw:", response);
       const lines = response.split('\n');
@@ -863,11 +929,12 @@ class ChatbotService {
         const trimmed = line.trim();
         if (!trimmed) continue;
 
-        // Regex for flexible parsing
         const transcriptMatch = trimmed.match(/^(?:\*\*|#|-|\s)*TRANSCRIPT\s*:?\s*(.*)/i);
         const scoreMatch = trimmed.match(/^(?:\*\*|#|-|\s)*SCORE\s*:?\s*(\d+)/i);
-        const feedbackMatch = trimmed.match(/^(?:\*\*|#|-|\s)*FEEDBACK\s*:?\s*(.*)/i);
-        const mistakeMatch = trimmed.match(/^(?:\*\*|#|-|\s)*MISTAKE\s*:?\s*(.*)/i);
+        const overviewMatch = trimmed.match(/^(?:\*\*|#|-|\s)*OVERVIEW\s*:?\s*(.*)/i);
+        const mistakesMatch = trimmed.match(/^(?:\*\*|#|-|\s)*MISTAKES\s*:?\s*(.*)/i);
+        const practiceMatch = trimmed.match(/^(?:\*\*|#|-|\s)*PRACTICE\s*:?\s*(.*)/i);
+        const homeworkMatch = trimmed.match(/^(?:\*\*|#|-|\s)*HOMEWORK\s*:?\s*(.*)/i);
 
         if (transcriptMatch) {
           result.transcript = transcriptMatch[1].trim();
@@ -875,23 +942,25 @@ class ChatbotService {
         } else if (scoreMatch) {
           result.score = parseInt(scoreMatch[1], 10);
           currentSection = null;
-        } else if (feedbackMatch) {
-          result.feedback = feedbackMatch[1].trim();
-          currentSection = 'feedback';
-        } else if (mistakeMatch) {
-          currentSection = null;
-          // Parse: word -> soundedLike -> advice
-          // Remove Markdown from the content string if present
-          const content = mistakeMatch[1].trim().replace(/\*\*/g, '');
-          const parts = content.split('->').map(p => p.trim());
-          if (parts.length >= 3) {
-            result.mistakes.push({ word: parts[0], soundedLike: parts[1], advice: parts[2] });
-          }
-        } else if (currentSection === 'feedback') {
-          // If we are in feedback section and line is not a header, append it
-          result.feedback += (result.feedback ? "\n" : "") + trimmed;
+        } else if (overviewMatch) {
+          result.overview = overviewMatch[1].trim();
+          currentSection = 'overview';
+        } else if (mistakesMatch) {
+          result.mistakes = mistakesMatch[1].trim();
+          currentSection = 'mistakes';
+        } else if (practiceMatch) {
+          result.practice = practiceMatch[1].trim();
+          currentSection = 'practice';
+        } else if (homeworkMatch) {
+          result.homework = homeworkMatch[1].trim();
+          currentSection = 'homework';
+        } else if (currentSection) {
+          result[currentSection] += '\n' + trimmed;
         }
       }
+
+      // Backward compat: keep feedback field as overview for controller response
+      result.feedback = result.overview;
       return result;
     } catch (error) {
       console.error('Pronunciation parsing error', error);

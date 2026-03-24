@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import HangingSign from '../components/HangingSign';
 import './Grammar.css';
 import { useToast } from '../context/ToastContext';
 import { grammarAPI } from '../services/api';
@@ -418,35 +419,9 @@ export function Grammar() {
   return (
     <div className="grammar-page">
       {/* Header */}
-      <div className="grammar-header">
-        <div className="grammar-header-left">
-          {selectedTense && (
-            <button className="back-btn" onClick={() => { setSelectedTense(null); resetExercise(); }}>
-              ← Trở về
-            </button>
-          )}
-          <div>
-            <h1>{selectedTense || 'Học Ngữ Pháp'}</h1>
-            <p className="grammar-subtitle">
-              {selectedTense
-                ? TENSE_SHORT[selectedTense] || ''
-                : `Thành thạo 12 thì tiếng Anh · ${completedCount}/12 hoàn thành`
-              }
-            </p>
-          </div>
-        </div>
-        {!selectedTense && (
-          <div className="grammar-progress-summary">
-            <div className="progress-ring-mini">
-              <svg viewBox="0 0 36 36">
-                <path className="ring-bg-g" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <path className="ring-fill-g" strokeDasharray={`${Math.round((completedCount / 12) * 100)}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <text x="18" y="20.5" className="ring-text-g">{completedCount}</text>
-              </svg>
-            </div>
-          </div>
-        )}
-      </div>
+      <HangingSign className="grammar-header">
+        <h1 style={{ margin: '8px', fontSize: '1.5rem' }}>{selectedTense || 'Học Ngữ Pháp'}</h1>
+      </HangingSign>
 
       {/* ==================== TENSE SELECTION GRID ==================== */}
       {!selectedTense ? (

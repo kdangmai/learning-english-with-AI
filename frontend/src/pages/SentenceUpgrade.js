@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './SentenceWriting.css';
 import { useToast } from '../context/ToastContext';
 import { sentenceAPI } from '../services/api';
+import HangingSign from '../components/HangingSign';
 
 const DIFFICULTY_LEVELS = [
     { value: 'A1', label: 'Beginner', color: '#10b981' },
@@ -70,114 +71,109 @@ export function SentenceUpgrade() {
     return (
         <div className="sentence-page">
             {/* Header */}
-            <div className="sentence-header">
-                <div className="header-content">
-                    <h1>🚀 Nâng Cấp Câu</h1>
-                    <p>Biến câu văn đơn giản thành văn phong bản xứ chuyên nghiệp</p>
-                </div>
-                <div className="session-stats">
-                    <div className="session-badge">
-                        <span className="session-emoji">🎯</span>
-                        <span>Grammar: {grammarLevel} · Vocab: {vocabLevel}</span>
-                    </div>
-                </div>
-            </div>
+            <HangingSign className="sentence-header">
+                <h1 style={{ margin: '8px', fontSize: '1.5rem' }}>Nâng Cấp Câu</h1>
+            </HangingSign>
 
             <div className="sentence-container">
-                {/* Settings Panel */}
-                <div className="settings-panel">
-                    <div className="settings-section">
-                        <div className="setting-group">
-                            <label>📝 Mục tiêu ngữ pháp</label>
-                            <div className="level-pills">
-                                {DIFFICULTY_LEVELS.map((l) => (
-                                    <button
-                                        key={l.value}
-                                        className={`level-pill secondary ${grammarLevel === l.value ? 'active' : ''}`}
-                                        onClick={() => setGrammarLevel(l.value)}
-                                        style={{ '--level-color': l.color }}
-                                        title={l.label}
-                                    >
-                                        <span className="pill-value">{l.value}</span>
-                                        <span className="pill-label">{l.label}</span>
-                                    </button>
-                                ))}
+                <div className="sentence-top-row">
+                    {/* Settings Panel */}
+                    <div className="settings-panel">
+                        <div className="settings-section">
+                            <div className="setting-group">
+                                <label>📝 Mục tiêu ngữ pháp</label>
+                                <div className="level-pills">
+                                    {DIFFICULTY_LEVELS.map((l) => (
+                                        <button
+                                            key={l.value}
+                                            className={`level-pill secondary ${grammarLevel === l.value ? 'active' : ''}`}
+                                            onClick={() => setGrammarLevel(l.value)}
+                                            style={{ '--level-color': l.color }}
+                                            title={l.label}
+                                        >
+                                            <span className="pill-value">{l.value}</span>
+                                            <span className="pill-label">{l.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="setting-group">
+                                <label>📊 Mục tiêu từ vựng</label>
+                                <div className="level-pills">
+                                    {DIFFICULTY_LEVELS.map((l) => (
+                                        <button
+                                            key={l.value}
+                                            className={`level-pill ${vocabLevel === l.value ? 'active' : ''}`}
+                                            onClick={() => setVocabLevel(l.value)}
+                                            style={{ '--level-color': l.color }}
+                                            title={l.label}
+                                        >
+                                            <span className="pill-value">{l.value}</span>
+                                            <span className="pill-label">{l.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="setting-group">
+                                <label>📖 Hướng dẫn</label>
+                                <p className="instruction-text">
+                                    Nhập câu tiếng Anh của bạn vào ô bên phải. AI sẽ viết lại câu đó với ngữ pháp và từ vựng ở cấp độ bạn chọn.
+                                </p>
                             </div>
                         </div>
 
-                        <div className="setting-group">
-                            <label>📊 Mục tiêu từ vựng</label>
-                            <div className="level-pills">
-                                {DIFFICULTY_LEVELS.map((l) => (
-                                    <button
-                                        key={l.value}
-                                        className={`level-pill ${vocabLevel === l.value ? 'active' : ''}`}
-                                        onClick={() => setVocabLevel(l.value)}
-                                        style={{ '--level-color': l.color }}
-                                        title={l.label}
-                                    >
-                                        <span className="pill-value">{l.value}</span>
-                                        <span className="pill-label">{l.label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="setting-group">
-                            <label>📖 Hướng dẫn</label>
-                            <p className="instruction-text">
-                                Nhập câu tiếng Anh của bạn vào ô bên phải. AI sẽ viết lại câu đó với ngữ pháp và từ vựng ở cấp độ bạn chọn.
-                            </p>
-                        </div>
+                        <button
+                            className="generate-btn upgrade-generate-btn"
+                            onClick={handleUpgrade}
+                            disabled={loading || !upgradeInput.trim()}
+                        >
+                            {loading ? (
+                                <><span className="spinner-sw"></span> Đang xử lý...</>
+                            ) : (
+                                '✨ Nâng cấp câu'
+                            )}
+                        </button>
                     </div>
 
-                    <button
-                        className="generate-btn upgrade-generate-btn"
-                        onClick={handleUpgrade}
-                        disabled={loading || !upgradeInput.trim()}
-                    >
-                        {loading ? (
-                            <><span className="spinner-sw"></span> Đang xử lý...</>
-                        ) : (
-                            '✨ Nâng cấp câu'
-                        )}
-                    </button>
+                    {/* Workspace Panel */}
+                    <div className="workspace-panel">
+                        {/* Input Area */}
+                        <div className="input-card">
+                            <div className="card-label">✏️ Câu của bạn</div>
+                            <textarea
+                                className="translation-input"
+                                value={upgradeInput}
+                                onChange={(e) => setUpgradeInput(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Ví dụ: I want to get a better job because I need more money..."
+                            />
+                            <div className="input-footer">
+                                <div className="footer-left">
+                                    <span className="word-count">{wordCount} từ</span>
+                                    <span className="shortcut-hint">Ctrl+Enter để nâng cấp</span>
+                                </div>
+                                <button
+                                    className="submit-btn upgrade-submit-btn"
+                                    onClick={handleUpgrade}
+                                    disabled={loading || !upgradeInput.trim()}
+                                >
+                                    {loading ? (
+                                        <><span className="spinner-sw"></span> Đang xử lý...</>
+                                    ) : (
+                                        'Nâng cấp ✨'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Workspace Panel */}
-                <div className="workspace-panel">
-                    {/* Input Area */}
-                    <div className="input-card">
-                        <div className="card-label">✏️ Câu của bạn</div>
-                        <textarea
-                            className="translation-input"
-                            value={upgradeInput}
-                            onChange={(e) => setUpgradeInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="Ví dụ: I want to get a better job because I need more money..."
-                        />
-                        <div className="input-footer">
-                            <div className="footer-left">
-                                <span className="word-count">{wordCount} từ</span>
-                                <span className="shortcut-hint">Ctrl+Enter để nâng cấp</span>
-                            </div>
-                            <button
-                                className="submit-btn upgrade-submit-btn"
-                                onClick={handleUpgrade}
-                                disabled={loading || !upgradeInput.trim()}
-                            >
-                                {loading ? (
-                                    <><span className="spinner-sw"></span> Đang xử lý...</>
-                                ) : (
-                                    'Nâng cấp ✨'
-                                )}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Results Area */}
-                    {upgradeResult && (
-                        <div className="comparison-container bounce-in">
+                {/* ====== Feedback Bottom Row ====== */}
+                {upgradeResult && (
+                    <div className="feedback-bottom-row bounce-in">
+                        <div className="feedback-left-col">
                             {/* Upgraded Version */}
                             <div className="diff-card upgraded">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -189,8 +185,20 @@ export function SentenceUpgrade() {
                                 <div className="diff-content">{upgradeResult.upgradedSentence}</div>
                             </div>
 
+                            {/* Try again actions */}
+                            <div className="feedback-actions">
+                                <button className="try-again-btn" onClick={() => { setUpgradeInput(''); setUpgradeResult(null); }}>
+                                    Câu khác 🔄
+                                </button>
+                                <button className="next-sentence-btn" onClick={handleUpgrade} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+                                    Nâng cấp lại ✨
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="feedback-right-col feedback-details">
                             {/* Improvements Detail */}
-                            {upgradeResult.improvements && upgradeResult.improvements.length > 0 && (
+                            {upgradeResult.improvements && upgradeResult.improvements.length > 0 ? (
                                 <div style={{ marginTop: 4 }}>
                                     <h4 className="improvements-header">
                                         Chi tiết thay đổi
@@ -206,21 +214,17 @@ export function SentenceUpgrade() {
                                         </div>
                                     ))}
                                 </div>
+                            ) : (
+                                <div className="feedback-block success">
+                                    <h4>✅ Câu của bạn đã rất tốt!</h4>
+                                    <p>Không có nhiều chi tiết cần phải nâng cấp thêm.</p>
+                                </div>
                             )}
-
-                            {/* Try again */}
-                            <div className="feedback-actions" style={{ marginTop: 16 }}>
-                                <button className="try-again-btn" onClick={() => { setUpgradeInput(''); setUpgradeResult(null); }}>
-                                    Câu khác 🔄
-                                </button>
-                                <button className="next-sentence-btn" onClick={handleUpgrade} style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-                                    Nâng cấp lại ✨
-                                </button>
-                            </div>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
+
         </div>
     );
 }

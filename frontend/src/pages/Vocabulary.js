@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
+import HangingSign from '../components/HangingSign';
 import './Vocabulary.css';
 
 import Modal from '../components/common/Modal';
@@ -74,7 +75,7 @@ export function Vocabulary() {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Filter States
-  const [selectedLevel, setSelectedLevel] = useState('B1');
+  const [selectedLevel, setSelectedLevel] = useState('Mixed');
   const [wordCount, setWordCount] = useState(5);
   const [selectedType, setSelectedType] = useState('Daily');
   const [selectedPart, setSelectedPart] = useState('mix');
@@ -96,6 +97,10 @@ export function Vocabulary() {
   const [matchTimer, setMatchTimer] = useState(0);
   const [matchGameComplete, setMatchGameComplete] = useState(false);
   const [matchPairCount, setMatchPairCount] = useState(6);
+  const [matchMaxWrong, setMatchMaxWrong] = useState(5);
+  const [matchTimeLimit, setMatchTimeLimit] = useState(120);
+  const [matchDifficulty, setMatchDifficulty] = useState('medium'); // 'easy', 'medium', 'hard'
+  const [matchGameOverReason, setMatchGameOverReason] = useState('success'); // 'success', 'time', 'wrong'
   const [matchAttempts, setMatchAttempts] = useState(0);
   const [matchStartTime, setMatchStartTime] = useState(null);
   const [shuffledEn, setShuffledEn] = useState([]);
@@ -256,6 +261,44 @@ export function Vocabulary() {
       }
     } catch (err) {
       console.error("Fetch intervals error", err);
+    }
+  };
+
+  const startFolderReview = async () => {
+    if (!selectedFolder) {
+      warning('Vui lòng chọn một thư mục để ôn tập!');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const folderWords = words; // Already filtered by libraryTab & selectedFolder
+      if (folderWords.length === 0) {
+        warning('Thư mục này chưa có từ vựng nào!');
+        setLoading(false);
+        return;
+      }
+
+      // Review up to 30 words from this folder
+      const reviewWords = [...folderWords].sort(() => 0.5 - Math.random()).slice(0, 30);
+
+      setFlashcards(reviewWords);
+      setCurrentCardIndex(0);
+      setFlipped(false);
+      setSessionResults({ again: 0, hard: 0, good: 0, easy: 0 });
+      pendingReviewsRef.current = [];
+      setActiveTab('topics');
+      setIsLearning(true);
+      success(`Bắt đầu ôn tập ${reviewWords.length} từ trong thư mục!`);
+
+      if (reviewWords[0]?._id) {
+        fetchCardIntervals(reviewWords[0]._id);
+      }
+    } catch (err) {
+      console.error("Folder review error", err);
+      error("Lỗi khi tải bài ôn tập thư mục.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -589,11 +632,20 @@ export function Vocabulary() {
     let interval;
     if (matchGameActive && !matchGameComplete) {
       interval = setInterval(() => {
-        setMatchTimer(prev => prev + 1);
+        setMatchTimer(prev => {
+          const next = prev + 1;
+          if (matchTimeLimit > 0 && next >= matchTimeLimit) {
+            setMatchGameOverReason('time');
+            setMatchGameComplete(true);
+            clearInterval(interval);
+            return matchTimeLimit;
+          }
+          return next;
+        });
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [matchGameActive, matchGameComplete]);
+  }, [matchGameActive, matchGameComplete, matchTimeLimit]);
 
   // SRS review for matched words (fire & forget)
   const reviewMatchedWord = async (wordId) => {
@@ -675,6 +727,7 @@ export function Vocabulary() {
         setMatchAttempts(0);
         setMatchGameComplete(false);
         setMatchGameActive(true);
+        setMatchGameOverReason('success'); // Reset game over reason
         setMatchStartTime(Date.now());
         setMatchSrsReviewed(0);
         setFloatingScores([]);
@@ -774,6 +827,15 @@ export function Vocabulary() {
         // ❌ Wrong match
         setMatchWrong({ en: newSelection.en, vi: newSelection.vi });
         setMatchCombo(0);
+
+        const currentWrongs = matchAttempts + 1 - matchedPairs.size;
+        if (matchMaxWrong > 0 && currentWrongs >= matchMaxWrong) {
+          setTimeout(() => {
+            setMatchGameOverReason('wrong');
+            setMatchGameComplete(true);
+          }, 600);
+        }
+
         setTimeout(() => {
           setMatchSelected({ en: null, vi: null });
           setMatchWrong({ en: null, vi: null });
@@ -802,26 +864,29 @@ export function Vocabulary() {
 
   return (
     <div className="vocabulary-page">
-      <div className="main-tabs">
-        <button
-          className={`main-tab-btn ${activeTab === 'topics' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('topics'); setIsLearning(false); }}
-        >
-          📖 Học Từ Vựng
-        </button>
-        <button
-          className={`main-tab-btn ${activeTab === 'library' ? 'active' : ''}`}
-          onClick={() => setActiveTab('library')}
-        >
-          📚 Kho Từ Vựng
-        </button>
-        <button
-          className={`main-tab-btn ${activeTab === 'match' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('match'); setMatchGameActive(false); setMatchGameComplete(false); }}
-        >
-          🎮 Nối Từ
-        </button>
-      </div>
+      {/* Header */}
+      <HangingSign className="vocab-header">
+        <div className="main-tabs">
+          <button
+            className={`main-tab-btn ${activeTab === 'topics' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('topics'); setIsLearning(false); }}
+          >
+            📖 Học Từ Vựng
+          </button>
+          <button
+            className={`main-tab-btn ${activeTab === 'library' ? 'active' : ''}`}
+            onClick={() => setActiveTab('library')}
+          >
+            📚 Kho Từ Vựng
+          </button>
+          <button
+            className={`main-tab-btn ${activeTab === 'match' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('match'); setMatchGameActive(false); setMatchGameComplete(false); }}
+          >
+            🎮 Nối Từ
+          </button>
+        </div>
+      </HangingSign>
 
       <div className="content-area">
         {/* TOPICS TAB */}
@@ -866,7 +931,7 @@ export function Vocabulary() {
               <div className="filter-group">
                 <label>📚 Bộ từ vựng:</label>
                 <div className="filter-options">
-                  {['Daily', 'IELTS', 'TOEIC', 'Academic'].map(type => (
+                  {['Mixed', 'Daily', 'IELTS', 'TOEIC', 'Academic'].map(type => (
                     <button key={type} className={`filter-chip ${selectedType === type ? 'active' : ''}`} onClick={() => setSelectedType(type)}>{type}</button>
                   ))}
                 </div>
@@ -874,7 +939,15 @@ export function Vocabulary() {
               <div className="filter-group">
                 <label>🔤 Loại từ:</label>
                 <div className="filter-options">
-                  {[{ k: 'mix', l: 'Hỗn hợp' }, { k: 'noun', l: 'Danh từ' }, { k: 'verb', l: 'Động từ' }, { k: 'adjective', l: 'Tính từ' }].map(p => (
+                  {[
+                    { k: 'mix', l: 'Hỗn hợp' },
+                    { k: 'noun', l: 'Danh từ' },
+                    { k: 'verb', l: 'Động từ' },
+                    { k: 'adjective', l: 'Tính từ' },
+                    { k: 'collocation', l: 'Collocations' },
+                    { k: 'phrasal verb', l: 'Phrasal Verbs' },
+                    { k: 'idiom', l: 'Idioms' }
+                  ].map(p => (
                     <button key={p.k} className={`filter-chip ${selectedPart === p.k ? 'active' : ''}`} onClick={() => setSelectedPart(p.k)}>{p.l}</button>
                   ))}
                 </div>
@@ -883,7 +956,7 @@ export function Vocabulary() {
               <div className="filter-group">
                 <label>📊 Trình độ:</label>
                 <div className="filter-options">
-                  {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => (
+                  {['Mixed', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => (
                     <button key={lvl} className={`filter-chip ${selectedLevel === lvl ? 'active' : ''}`} onClick={() => setSelectedLevel(lvl)}>{lvl}</button>
                   ))}
                 </div>
@@ -1109,6 +1182,12 @@ export function Vocabulary() {
                       <option key={f._id} value={f._id}>{f.name}</option>
                     ))}
                   </select>
+
+                  {selectedFolder && (
+                    <button className="action-btn-mini folder-action" onClick={startFolderReview}>
+                      📖 Ôn tập
+                    </button>
+                  )}
 
                   <select
                     value={sortBy}
@@ -1337,6 +1416,30 @@ export function Vocabulary() {
               </div>
             </div>
 
+            <div className="match-pair-selector">
+              <label>🎮 Độ khó:</label>
+              <div className="match-pair-options">
+                {[
+                  { key: 'easy', label: '😊 Dễ', desc: '(Vô hạn sai, Vô hạn giờ)' },
+                  { key: 'medium', label: '😐 Trung bình', desc: '(5 lần sai, 120s)' },
+                  { key: 'hard', label: '😤 Khó', desc: '(3 lần sai, 60s)' },
+                ].map(d => (
+                  <button
+                    key={d.key}
+                    className={`match-pair-btn ${matchDifficulty === d.key ? 'active' : ''}`}
+                    onClick={() => {
+                      setMatchDifficulty(d.key);
+                      if (d.key === 'easy') { setMatchMaxWrong(0); setMatchTimeLimit(0); }
+                      else if (d.key === 'medium') { setMatchMaxWrong(5); setMatchTimeLimit(120); }
+                      else { setMatchMaxWrong(3); setMatchTimeLimit(60); }
+                    }}
+                  >
+                    {d.label} <small>{d.desc}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button
               className="match-start-btn"
               onClick={startMatchGame}
@@ -1369,8 +1472,14 @@ export function Vocabulary() {
                 )}
                 <div className="hud-item timer">
                   <span className="hud-icon">⏱️</span>
-                  <span className="hud-value">{formatMatchTime(matchTimer)}</span>
+                  <span className="hud-value">{matchTimeLimit > 0 ? formatMatchTime(matchTimeLimit - matchTimer) : formatMatchTime(matchTimer)}</span>
                 </div>
+                {matchMaxWrong > 0 && (
+                  <div className="hud-item progress">
+                    <span className="hud-icon">❌</span>
+                    <span className="hud-value">{matchMaxWrong - (matchAttempts - matchedPairs.size)}</span>
+                  </div>
+                )}
                 <div className="hud-item progress">
                   <span className="hud-value">{matchedPairs.size}/{matchWords.length}</span>
                 </div>
@@ -1470,9 +1579,12 @@ export function Vocabulary() {
 
             <div className="match-result-card">
               <div className="result-trophy">
-                {getMatchStars() === 3 ? '🏆' : getMatchStars() === 2 ? '🥈' : '🥉'}
+                {matchGameOverReason === 'success' ? (getMatchStars() === 3 ? '🏆' : getMatchStars() === 2 ? '🥈' : '🥉') : '💥'}
               </div>
-              <h2 className="result-title">Hoàn Thành!</h2>
+              <h2 className="result-title">
+                {matchGameOverReason === 'success' ? 'Hoàn Thành!' :
+                  matchGameOverReason === 'time' ? 'Hết Thời Gian!' : 'Thua Cuộc!'}
+              </h2>
               <div className="result-stars">
                 {[1, 2, 3].map(i => (
                   <span key={i} className={`result-star ${i <= getMatchStars() ? 'earned' : ''}`}>⭐</span>

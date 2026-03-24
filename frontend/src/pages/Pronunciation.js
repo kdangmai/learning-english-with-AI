@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './Pronunciation.css';
 import { useToast } from '../context/ToastContext';
 import { pronunciationAPI } from '../services/api';
+import HangingSign from '../components/HangingSign';
 
 const LEVELS = [
     { value: 'A1', label: 'Cơ bản', color: '#10b981' },
@@ -15,7 +16,6 @@ const LEVELS = [
 export default function Pronunciation() {
     const [targetSentence, setTargetSentence] = useState('');
     const [isRecording, setIsRecording] = useState(false);
-    const [spokenText, setSpokenText] = useState('');
     const [analysis, setAnalysis] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -23,6 +23,7 @@ export default function Pronunciation() {
     const [level, setLevel] = useState('A1');
     const [generating, setGenerating] = useState(false);
     const [sessionCount, setSessionCount] = useState(0);
+    const [speechRate, setSpeechRate] = useState(1);
 
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
@@ -89,7 +90,6 @@ export default function Pronunciation() {
             setIsRecording(true);
             setError('');
             setAnalysis(null);
-            setSpokenText('(Đang ghi âm...)');
         } catch (err) {
             console.error('Microphone access error:', err);
             let msg = 'Không thể truy cập microphone.';
@@ -114,7 +114,6 @@ export default function Pronunciation() {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
-            setSpokenText('(Đang gửi âm thanh để phân tích...)');
         }
     };
 
@@ -125,8 +124,10 @@ export default function Pronunciation() {
 
     const handleListen = () => {
         if (!targetSentence) return;
+        window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(targetSentence);
         utterance.lang = 'en-US';
+        utterance.rate = speechRate;
         const voice = voices.find(v => v.name.includes('Google US English')) || voices.find(v => v.lang === 'en-US');
         if (voice) utterance.voice = voice;
         window.speechSynthesis.speak(utterance);
@@ -140,15 +141,12 @@ export default function Pronunciation() {
             if (data.success) {
                 setAnalysis(data);
                 setSessionCount(prev => prev + 1);
-                if (data.transcript) setSpokenText(data.transcript);
             } else {
                 setError(data.message || 'Phân tích thất bại.');
-                setSpokenText('');
             }
         } catch (err) {
             console.error(err);
             setError('Lỗi kết nối máy chủ.');
-            setSpokenText('');
         } finally {
             setLoading(false);
         }
@@ -157,7 +155,6 @@ export default function Pronunciation() {
     const generateNewSentence = async () => {
         setGenerating(true);
         setError('');
-        setSpokenText('');
         setAnalysis(null);
         try {
             const response = await pronunciationAPI.generate(level);
@@ -193,23 +190,14 @@ export default function Pronunciation() {
     return (
         <div className="pronunciation-page">
             {/* Header */}
-            <div className="pron-header">
-                <div className="pron-header-left">
-                    <h1>🗣️ Luyện Phát Âm AI</h1>
-                    <p className="pron-subtitle">Lắng nghe, nhắc lại và để AI sửa lỗi cho bạn</p>
-                </div>
-                <div className="pron-header-right">
-                    {sessionCount > 0 && (
-                        <div className="pron-session-badge">
-                            <span>🔥</span> {sessionCount} lần luyện
-                        </div>
-                    )}
-                </div>
-            </div>
+            <HangingSign className="pron-header">
+                <h1 style={{ margin: '8px', fontSize: '1.5rem' }}>Luyện Phát Âm</h1>
+            </HangingSign>
 
-            <div className="pron-main-layout">
-                {/* Left Panel: Settings */}
-                <div className="pron-settings-panel">
+            <div className={`pron-container ${analysis ? 'has-feedback' : ''}`}>
+                <div className="pron-top-row">
+                    {/* Left Panel: Settings */}
+                    <div className="pron-settings-panel">
                     <div className="pron-setting-group">
                         <label>📊 Trình độ</label>
                         <div className="pron-level-pills">
@@ -269,6 +257,18 @@ export default function Pronunciation() {
                                     <button className="pron-icon-btn listen" onClick={handleListen} title="Nghe mẫu">
                                         🔊 <span>Nghe</span>
                                     </button>
+                                    <div className="pron-speed-selector">
+                                        <span className="pron-speed-label">Tốc độ:</span>
+                                        {[0.5, 0.75, 1, 1.25].map(rate => (
+                                            <button
+                                                key={rate}
+                                                className={`pron-speed-btn ${speechRate === rate ? 'active' : ''}`}
+                                                onClick={() => setSpeechRate(rate)}
+                                            >
+                                                {rate}x
+                                            </button>
+                                        ))}
+                                    </div>
                                     <button className="pron-icon-btn refresh" onClick={generateNewSentence} disabled={generating} title="Đổi câu khác">
                                         🔄 <span>Đổi câu</span>
                                     </button>
@@ -288,81 +288,91 @@ export default function Pronunciation() {
                                 {isRecording && <div className="pron-recording-indicator">Đang lắng nghe...</div>}
                             </div>
 
-                            {/* Spoken Text */}
-                            {spokenText && (
-                                <div className="pron-spoken-card">
-                                    <div className="pron-spoken-label">📝 Bạn đã nói:</div>
-                                    <p className="pron-spoken-text">"{spokenText}"</p>
-                                </div>
-                            )}
-
-                            {/* Loading */}
+                            {/* Loading / Thinking */}
                             {loading && (
                                 <div className="pron-loading">
-                                    <span className="pron-spinner"></span>
-                                    AI đang phân tích phát âm của bạn...
+                                    <div className="pron-loading-icon">
+                                        <span className="pron-thinking-dot"></span>
+                                        <span className="pron-thinking-dot"></span>
+                                        <span className="pron-thinking-dot"></span>
+                                    </div>
+                                    <div className="pron-loading-text">
+                                        <h4> AI đang phân tích phát âm...</h4>
+                                        <p>Đang so sánh giọng đọc với câu mẫu, vui lòng đợi vài giây.</p>
+                                    </div>
                                 </div>
                             )}
 
                             {/* Error */}
                             {error && <div className="pron-error">{error}</div>}
 
-                            {/* Analysis Result */}
-                            {analysis && (
-                                <div className={`pron-analysis ${getScoreClass(analysis.score)}`}>
-                                    <div className="pron-score-section">
-                                        <div className="pron-score-circle">
-                                            <span className="pron-score-emoji">{getScoreEmoji(analysis.score)}</span>
-                                            <span className="pron-score-value">{analysis.score}</span>
-                                            <span className="pron-score-label">điểm</span>
-                                        </div>
-                                        <div className="pron-score-message">
-                                            {analysis.score >= 80 && <h4>Xuất sắc!</h4>}
-                                            {analysis.score >= 60 && analysis.score < 80 && <h4>Khá tốt!</h4>}
-                                            {analysis.score >= 40 && analysis.score < 60 && <h4>Cần luyện thêm</h4>}
-                                            {analysis.score < 40 && <h4>Cố gắng lên!</h4>}
-                                        </div>
-                                    </div>
-
-                                    <div className="pron-feedback-section">
-                                        <div className="pron-feedback-block">
-                                            <h4>💬 Nhận xét của AI</h4>
-                                            <p>{analysis.feedback}</p>
-                                        </div>
-
-                                        {analysis.mistakes && analysis.mistakes.length > 0 && (
-                                            <div className="pron-mistakes-block">
-                                                <h4>⚠️ Cần cải thiện</h4>
-                                                <div className="pron-mistakes-list">
-                                                    {analysis.mistakes.map((m, idx) => (
-                                                        <div key={idx} className="pron-mistake-item">
-                                                            <div className="mistake-word">
-                                                                <strong>{m.word}</strong>
-                                                                <span className="mistake-arrow">→</span>
-                                                                <em>"{m.soundedLike}"</em>
-                                                            </div>
-                                                            <p className="mistake-advice">💡 {m.advice}</p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="pron-analysis-actions">
-                                        <button className="pron-retry-btn" onClick={handleToggleRecording}>
-                                            🔁 Thử lại
-                                        </button>
-                                        <button className="pron-next-btn" onClick={generateNewSentence}>
-                                            ➡️ Câu tiếp
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
                         </>
                     )}
                 </div>
             </div>
+
+            {/* ====== Feedback Bottom Row ====== */}
+            {analysis && (
+                <div className="feedback-bottom-row bounce-in">
+                    <div className="feedback-left-col">
+                        <div className={`pron-score-container ${getScoreClass(analysis.score)}`}>
+                            <div className="pron-score-circle">
+                                <span className="pron-score-emoji">{getScoreEmoji(analysis.score)}</span>
+                                <span className="pron-score-value">{analysis.score}</span>
+                                <span className="pron-score-label">điểm</span>
+                            </div>
+                            <div className="pron-score-message">
+                                {analysis.score >= 80 && <h4>Xuất sắc!</h4>}
+                                {analysis.score >= 60 && analysis.score < 80 && <h4>Khá tốt!</h4>}
+                                {analysis.score >= 40 && analysis.score < 60 && <h4>Cần luyện thêm</h4>}
+                                {analysis.score < 40 && <h4>Cố gắng lên!</h4>}
+                            </div>
+                        </div>
+                        
+                        {analysis.overview && (
+                            <div className="pron-feedback-block" style={{marginTop: '16px'}}>
+                                <h4>📋 Tổng quan</h4>
+                                <p>{analysis.overview}</p>
+                            </div>
+                        )}
+                        
+                        <div className="feedback-actions" style={{marginTop: 'auto', paddingTop: '16px', borderTop: '1px dashed rgba(0,0,0,0.1)'}}>
+                            <button className="try-again-btn" onClick={handleToggleRecording}>
+                                🔁 Thử lại
+                            </button>
+                            <button className="next-sentence-btn" onClick={generateNewSentence}>
+                                ➡️ Câu tiếp
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="feedback-right-col feedback-details">
+                        <div className="pron-feedback-section">
+                            {analysis.mistakes && (
+                                <div className="pron-feedback-block pron-mistakes-block">
+                                    <h4>⚠️ Các lỗi phát âm quan trọng</h4>
+                                    <p>{analysis.mistakes}</p>
+                                </div>
+                            )}
+
+                            {analysis.practice && (
+                                <div className="pron-feedback-block pron-practice-block">
+                                    <h4>🎯 Từ/cụm nên luyện thêm</h4>
+                                    <p>{analysis.practice}</p>
+                                </div>
+                            )}
+
+                            {analysis.homework && (
+                                <div className="pron-feedback-block pron-homework-block">
+                                    <h4>📝 Bài tập gợi ý</h4>
+                                    <p>{analysis.homework}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
         </div>
     );
 }

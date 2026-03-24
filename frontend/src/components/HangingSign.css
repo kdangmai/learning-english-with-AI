@@ -1,0 +1,134 @@
+/* HangingSign Component Wrapper */
+.signboard-wrapper {
+  position: relative;
+  width: max-content;
+  margin: 30px auto 10px auto;
+  /* 30px space at the top */
+  transform-origin: center -25px;
+  /* Origin exactly at the top pin */
+  animation:
+    init 1000ms forwards,
+    init-sign-move 1000ms ease-out 1000ms,
+    sign-move 3000ms 2000ms infinite;
+  z-index: 10;
+}
+
+/* The element representing the board/header */
+.signboard-wrapper .signboard {
+  position: relative;
+  z-index: 2;
+  /* Content above the string */
+}
+
+/* The hanging string */
+.signboard-wrapper .signboard-string {
+  width: 50px;
+  height: 50px;
+  border: solid 4px rgba(148, 163, 184, 0.6);
+  /* rope color for glassmorphism */
+  border-bottom: none;
+  border-right: none;
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform-origin: top left;
+  transform: rotateZ(45deg);
+  z-index: 1;
+  /* Behind the board */
+  pointer-events: none;
+}
+
+/* Base styles for the pins */
+.signboard-wrapper .pin {
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  border-radius: 50%;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  z-index: 3;
+  /* On top of everything */
+}
+
+/* Top wall pin (pin1) */
+.signboard-wrapper .pin.pin1 {
+  background: linear-gradient(135deg, #cbd5e1, #64748b);
+  top: -31px;
+  /* -25px + offset for 16px height */
+  left: calc(50% - 8px);
+}
+
+/* Board pins (pin2 and pin3) */
+/* String size 50px * 0.7071 = 35.35px diagonal drop from top pin */
+/* So Y = -25 + 35.35 = 10.35px */
+/* center +/- 35.35px */
+/* Make pin2 and pin3 look like the string/knots */
+.signboard-wrapper .pin.pin2,
+.signboard-wrapper .pin.pin3 {
+  background: rgba(148, 163, 184, 0.6);
+  width: 8px;
+  height: 8px;
+  box-shadow: none;
+  border: none;
+  top: 6.35px; /* 10.35px - 4px (radius) */
+}
+
+.signboard-wrapper .pin.pin2 {
+  left: calc(50% - 39.35px); /* 50% - 35.35 - 4 */
+}
+
+.signboard-wrapper .pin.pin3 {
+  left: calc(50% + 31.35px); /* 50% + 35.35 - 4 */
+}
+
+/* Dark theme specific tweaks if necessary */
+[data-theme="dark"] .signboard-wrapper .pin.pin1 {
+  background: linear-gradient(135deg, #94a3b8, #334155);
+}
+
+[data-theme="dark"] .signboard-wrapper .pin.pin2,
+[data-theme="dark"] .signboard-wrapper .pin.pin3 {
+  background: linear-gradient(135deg, #cbd5e1, #475569);
+}
+
+/* Animations adapted from user example */
+@keyframes init {
+  0% {
+    transform: scale(0);
+  }
+
+  40% {
+    transform: scale(1.03);
+  }
+
+  60% {
+    transform: scale(0.97);
+  }
+
+  80% {
+    transform: scale(1.01);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes init-sign-move {
+  100% {
+    transform: rotateZ(2deg);
+  }
+}
+
+@keyframes sign-move {
+  0% {
+    transform: rotateZ(2deg);
+  }
+
+  50% {
+    transform: rotateZ(-2deg);
+  }
+
+  100% {
+    transform: rotateZ(2deg);
+  }
+}

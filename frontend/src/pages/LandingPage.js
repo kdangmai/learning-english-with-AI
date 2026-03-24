@@ -197,34 +197,6 @@ function LandingPage() {
                 </div>
             </header>
 
-            {/* ══════════ TRUSTED BY ══════════ */}
-            <section className="landing-trusted">
-                <div className="landing-container">
-                    <div className="trusted-label">Được tin dùng bởi</div>
-                    <div className="trusted-items">
-                        {[
-                            { icon: '🏛️', name: 'Đại học Bách Khoa' },
-                            { icon: '🎓', name: 'ĐH Khoa học Tự nhiên' },
-                            { icon: '📚', name: 'IELTS Academy' },
-                            { icon: '💼', name: 'FPT Software' },
-                            { icon: '🌐', name: 'VNG Corporation' },
-                        ].map((item, i) => (
-                            <motion.div
-                                key={i}
-                                className="trusted-item"
-                                initial={{ opacity: 0, y: 10 }}
-                                whileInView={{ opacity: 0.6, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: i * 0.1 }}
-                                whileHover={{ opacity: 1 }}
-                            >
-                                <span className="trusted-icon">{item.icon}</span>
-                                <span className="trusted-name">{item.name}</span>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            </section>
 
             {/* ══════════ FEATURES ══════════ */}
             <section id="features" className="landing-features">

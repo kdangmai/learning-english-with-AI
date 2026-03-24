@@ -57,11 +57,13 @@ export default function AdminDashboard() {
     // Form State
     const [newKeyName, setNewKeyName] = useState('');
     const [newKeyValue, setNewKeyValue] = useState('');
+    const [newKeyProvider, setNewKeyProvider] = useState('gemini');
     const [config, setConfig] = useState({});
     const [originalConfig, setOriginalConfig] = useState({});
 
     // Models loaded from backend
     const [availableModels, setAvailableModels] = useState([]);
+    const [openRouterModels, setOpenRouterModels] = useState([]);
 
     // Monitoring State
     const [keyStats, setKeyStats] = useState({ stats: {}, userStats: {}, cooldowns: {} });
@@ -282,6 +284,7 @@ export default function AdminDashboard() {
                 setConfig(data.config);
                 setOriginalConfig(data.config);
                 setAvailableModels(data.models || []);
+                setOpenRouterModels(data.openRouterModels || []);
                 tabDataLoaded.current.config = true;
             }
         } catch (err) {
@@ -470,10 +473,11 @@ export default function AdminDashboard() {
         if (!newKeyValue) return error('Key is required');
 
         try {
-            const { data } = await adminAPI.createApiKey({ name: newKeyName, key: newKeyValue });
+            const { data } = await adminAPI.createApiKey({ name: newKeyName, key: newKeyValue, provider: newKeyProvider });
             if (data.success) {
                 setNewKeyName('');
                 setNewKeyValue('');
+                setNewKeyProvider('gemini');
                 fetchApiKeys();
                 success('API Key added successfully');
             } else {
@@ -484,11 +488,11 @@ export default function AdminDashboard() {
         }
     };
 
-    const performKeyTest = useCallback(async (key, isNewKey = false) => {
+    const performKeyTest = useCallback(async (key, provider = 'gemini', model = null, isNewKey = false) => {
         setTestingKeyId(isNewKey ? '__new__' : key);
 
         try {
-            const { data } = await adminAPI.testApiKey(key);
+            const { data } = await adminAPI.testApiKey(key, provider, model);
 
             if (data.success) {
                 success(`✅ ${data.message}`);
@@ -508,12 +512,12 @@ export default function AdminDashboard() {
 
     const handleTestKey = useCallback(async () => {
         if (!newKeyValue) return error("Please enter an API Key to test.");
-        await performKeyTest(newKeyValue, true);
-    }, [newKeyValue, error, performKeyTest]);
+        await performKeyTest(newKeyValue, newKeyProvider, null, true);
+    }, [newKeyValue, newKeyProvider, error, performKeyTest]);
 
-    const handleTestExistingKey = useCallback(async (key) => {
+    const handleTestExistingKey = useCallback(async (key, provider = 'gemini', model = null) => {
         if (!key) return error("Key not available for testing.");
-        await performKeyTest(key);
+        await performKeyTest(key, provider, model);
     }, [error, performKeyTest]);
 
     const handleActivateKey = async (id) => {
@@ -891,6 +895,7 @@ export default function AdminDashboard() {
                                 { key: 'pronunciation_gen_model', label: '🔄 Tạo Câu Luyện Nói', desc: 'Sinh câu mẫu để luyện phát âm.', group: 'pron' }
                             ].map(item => {
                                 const isChanged = config[item.key] !== originalConfig[item.key];
+                                const allModels = [...availableModels, ...openRouterModels];
                                 return (
                                     <div key={item.key} className={`config-card ${isChanged ? 'config-changed' : ''}`}>
                                         <div className="config-info">
@@ -902,9 +907,18 @@ export default function AdminDashboard() {
                                             onChange={(e) => handleConfigChange(item.key, e.target.value)}
                                             className="model-select"
                                         >
-                                            {availableModels.map(m => (
-                                                <option key={m.value} value={m.value}>{m.label}</option>
-                                            ))}
+                                            <optgroup label="Gemini (Direct)">
+                                                {availableModels.map(m => (
+                                                    <option key={m.value} value={m.value}>{m.label}</option>
+                                                ))}
+                                            </optgroup>
+                                            {openRouterModels.length > 0 && (
+                                                <optgroup label="OpenRouter (Multi-Provider)">
+                                                    {openRouterModels.map(m => (
+                                                        <option key={m.value} value={m.value}>{m.label}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
                                         </select>
                                         {isChanged && <div className="config-changed-dot" />}
                                     </div>
@@ -917,15 +931,32 @@ export default function AdminDashboard() {
                     /* ==================== API KEYS TAB ==================== */
                     <div className="apikeys-section">
                         <form className="add-key-form" onSubmit={handleAddKey}>
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <input
+                                    type="text"
+                                    placeholder="Key Name (e.g. My Personal Key)"
+                                    value={newKeyName}
+                                    onChange={e => setNewKeyName(e.target.value)}
+                                    style={{ flex: 1 }}
+                                />
+                                <select
+                                    value={newKeyProvider}
+                                    onChange={e => setNewKeyProvider(e.target.value)}
+                                    className="toolbar-select"
+                                    style={{ minWidth: '140px', height: '42px' }}
+                                >
+                                    <option value="gemini">🟦 Gemini</option>
+                                    <option value="openai">🟩 OpenAI</option>
+                                    <option value="openrouter">🟣 OpenRouter</option>
+                                </select>
+                            </div>
                             <input
                                 type="text"
-                                placeholder="Key Name (e.g. My Personal Key)"
-                                value={newKeyName}
-                                onChange={e => setNewKeyName(e.target.value)}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Gemini API Key (AIza...)"
+                                placeholder={
+                                    newKeyProvider === 'openrouter' ? 'OpenRouter API Key (sk-or-...)'
+                                    : newKeyProvider === 'openai' ? 'OpenAI API Key (sk-...)'
+                                    : 'Gemini API Key (AIza...)'
+                                }
                                 value={newKeyValue}
                                 onChange={e => setNewKeyValue(e.target.value)}
                                 required
@@ -985,6 +1016,7 @@ export default function AdminDashboard() {
                                             />
                                         </th>
                                         <th>Name</th>
+                                        <th>Provider</th>
                                         <th>Key (Masked)</th>
                                         <th>Status</th>
                                         <th style={{ textAlign: 'center' }}>Monitoring</th>
@@ -993,7 +1025,7 @@ export default function AdminDashboard() {
                                 </thead>
                                 <tbody>
                                     {loading && apiKeys.length === 0 ? (
-                                        <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px' }}>
+                                        <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>
                                             <div className="loading-spinner"></div>
                                             <p>{loadingText || 'Loading...'}</p>
                                         </td></tr>
@@ -1013,6 +1045,11 @@ export default function AdminDashboard() {
                                                     />
                                                 </td>
                                                 <td>{k.name}</td>
+                                                <td>
+                                                    <span className={`badge ${k.provider === 'openrouter' ? 'badge-openrouter' : k.provider === 'openai' ? 'badge-openai' : 'badge-gemini'}`}>
+                                                        {k.provider === 'openrouter' ? '🟣 OpenRouter' : k.provider === 'openai' ? '🟩 OpenAI' : '🟦 Gemini'}
+                                                    </span>
+                                                </td>
                                                 <td style={{ fontFamily: 'monospace' }}>
                                                     {k.keyMasked}
                                                     <button
@@ -1081,7 +1118,7 @@ export default function AdminDashboard() {
                                                         </button>
                                                         <button
                                                             className="action-btn btn-test-key"
-                                                            onClick={() => handleTestExistingKey(k.fullKey)}
+                                                            onClick={() => handleTestExistingKey(k.fullKey, k.provider, k.model)}
                                                         >
                                                             ⚡ Test
                                                         </button>
@@ -1575,8 +1612,9 @@ export default function AdminDashboard() {
                                 value={editKey.provider || 'gemini'}
                                 onChange={(e) => setEditKey({ ...editKey, provider: e.target.value })}
                             >
-                                <option value="gemini">Gemini</option>
-                                <option value="openai">OpenAI</option>
+                                <option value="gemini">🟦 Gemini</option>
+                                <option value="openai">🟩 OpenAI</option>
+                                <option value="openrouter">🟣 OpenRouter</option>
                             </select>
                         </div>
                     </form>

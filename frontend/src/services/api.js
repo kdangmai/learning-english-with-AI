@@ -64,7 +64,7 @@ export const grammarAPI = {
   getProgress: () => apiClient.get('/grammar/progress'),
   submitExercise: (data) => apiClient.post('/grammar/exercise', data),
   completeTense: (tenseName) => apiClient.post('/grammar/complete-tense', { tenseName }),
-  generateExercises: (tenseName) => apiClient.post('/grammar/generate-exercises', { tenseName })
+  generateExercises: (tenseName) => apiClient.post('/grammar/generate-exercises', { tenseName }, { timeout: 90000 })
 };
 
 // Vocabulary endpoints
@@ -85,7 +85,7 @@ export const vocabularyAPI = {
   getIntervals: (wordId) => apiClient.get(`/vocabulary/intervals/${wordId}`),
 
   // Learning & Games
-  startLearning: (wordIds) => apiClient.post('/vocabulary/start-learning', { wordIds }),
+  startLearning: (data) => apiClient.post('/vocabulary/start-learning', data, { timeout: 90000 }),
   matchGame: (count) => apiClient.get(`/vocabulary/match-game?count=${count}`),
 
   // Actions
@@ -183,7 +183,7 @@ export const adminAPI = {
   getApiKeyStats: () => apiClient.get('/admin/api-keys/stats'),
   toggleApiKey: (keyId) => apiClient.put(`/admin/api-keys/${keyId}/toggle`),
   deleteApiKey: (keyId) => apiClient.delete(`/admin/api-keys/${keyId}`),
-  testApiKey: (key) => apiClient.post('/admin/api-keys/test', { key }),
+  testApiKey: (key, provider = 'gemini', model = null) => apiClient.post('/admin/api-keys/test', { key, provider, model }),
   testAllApiKeys: () => apiClient.post('/admin/api-keys/test-all'),
   activateBatchApiKeys: (ids) => apiClient.post('/admin/api-keys/activate-batch', { ids }),
   deleteBatchApiKeys: (ids) => apiClient.post('/admin/api-keys/delete-batch', { ids }),

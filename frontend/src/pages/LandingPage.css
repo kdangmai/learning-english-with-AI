@@ -770,59 +770,6 @@
     }
 }
 
-/* ==================== TRUSTED BAR ==================== */
-.landing-trusted {
-    padding: 60px 0;
-    border-top: 1px solid var(--lp-border);
-    border-bottom: 1px solid var(--lp-border);
-    background: var(--lp-bg-alt);
-    overflow: hidden;
-}
-
-.landing-page.dark .landing-trusted {
-    background: var(--lp-bg-alt);
-}
-
-.trusted-label {
-    text-align: center;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--lp-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 32px;
-}
-
-.trusted-items {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 48px;
-    flex-wrap: wrap;
-}
-
-.trusted-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    opacity: 0.6;
-    transition: opacity 0.3s;
-}
-
-.trusted-item:hover {
-    opacity: 1;
-}
-
-.trusted-item .trusted-icon {
-    font-size: 2rem;
-}
-
-.trusted-item .trusted-name {
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: var(--lp-text-secondary);
-}
 
 /* ==================== FEATURES ==================== */
 .landing-features {

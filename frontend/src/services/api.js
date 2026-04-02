@@ -144,6 +144,14 @@ export const folderAPI = {
   removeWords: (folderId, wordIds) => apiClient.post('/folders/remove-words', { folderId, wordIds })
 };
 
+// Reading Vocab endpoints
+export const readingVocabAPI = {
+  analyze: (data) => apiClient.post('/reading-vocab/analyze', data),
+  saveWords: (words) => apiClient.post('/reading-vocab/save-words', { words }),
+  getList: (status) => apiClient.get('/reading-vocab/list', { params: status ? { status } : {} }),
+  getReviewDue: () => apiClient.get('/reading-vocab/review/due')
+};
+
 // Dashboard endpoints
 export const dashboardAPI = {
   // Combined endpoint

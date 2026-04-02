@@ -22,6 +22,7 @@ const Pronunciation = lazy(() => import('./pages/Pronunciation'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const Roleplay = lazy(() => import('./pages/Roleplay'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
+const ReadingVocab = lazy(() => import('./pages/ReadingVocab'));
 
 
 // Navigation items configuration
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { path: '/leaderboard', icon: '🏆', label: 'Bảng Xếp Hạng', section: 'main' },
   { path: '/grammar', icon: '📚', label: 'Học Ngữ Pháp', section: 'learn' },
   { path: '/vocabulary', icon: '📖', label: 'Từ Vựng', section: 'learn' },
+  { path: '/reading-vocab', icon: '🔍', label: 'Từ Vựng Reading', section: 'learn' },
   { path: '/sentence-writing', icon: '✍️', label: 'Luyện Dịch Câu', section: 'practice' },
   { path: '/sentence-upgrade', icon: '⏫', label: 'Nâng Cấp Câu', section: 'practice' },
   { path: '/pronunciation', icon: '🗣️', label: 'Luyện Phát Âm', section: 'practice' },
@@ -218,6 +220,7 @@ function MainLayout() {
               <Route path="/dashboard" element={<AnimatedPage><Dashboard /></AnimatedPage>} />
               <Route path="/grammar" element={<AnimatedPage><Grammar /></AnimatedPage>} />
               <Route path="/vocabulary" element={<AnimatedPage><Vocabulary /></AnimatedPage>} />
+              <Route path="/reading-vocab" element={<AnimatedPage><ReadingVocab /></AnimatedPage>} />
               <Route path="/sentence-writing" element={<AnimatedPage><SentenceWriting /></AnimatedPage>} />
               <Route path="/sentence-upgrade" element={<AnimatedPage><SentenceUpgrade /></AnimatedPage>} />
               <Route path="/pronunciation" element={<AnimatedPage><Pronunciation /></AnimatedPage>} />

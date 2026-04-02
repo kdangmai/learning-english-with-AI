@@ -83,7 +83,7 @@ app.use('/api/pronunciation', require('./routes/pronunciationRoutes'));
 app.use('/api/roleplay', require('./routes/roleplayRoutes'));
 app.use('/api/folders', require('./routes/folderRoutes')); // New: Folder Management
 app.use('/api/leaderboard', require('./routes/leaderboardRoutes'));
-
+app.use('/api/reading-vocab', require('./routes/readingVocabRoutes'));
 // Health check endpoints
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'backend' });

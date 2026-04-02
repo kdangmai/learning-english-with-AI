@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import './SentenceWriting.css';
 import { useToast } from '../context/ToastContext';
 import { sentenceAPI } from '../services/api';

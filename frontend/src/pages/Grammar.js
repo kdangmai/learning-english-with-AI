@@ -63,10 +63,6 @@ export function Grammar() {
     return map;
   }, [tenses]);
 
-  const completedCount = useMemo(() => {
-    return tenses.filter(t => (t.progress || 0) >= 100).length;
-  }, [tenses]);
-
   useEffect(() => { fetchTenses(); }, []);
 
   useEffect(() => {

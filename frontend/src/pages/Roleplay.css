@@ -537,7 +537,7 @@
     padding: 40px;
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
     animation: rlSlideUp 0.5s ease;
-    max-width: 900px;
+    width: 90vw;
     margin: 0 auto;
     border: var(--border-glass);
 }
@@ -583,7 +583,7 @@
 
 .score-value {
     position: relative;
-    font-size: 3rem;
+    font-size: 3.5rem;
     font-weight: 800;
     background: linear-gradient(135deg, #a5b4fc, #c4b5fd);
     -webkit-background-clip: text;
@@ -592,7 +592,7 @@
 }
 
 .score-label {
-    font-size: 1rem;
+    font-size: 1.15rem;
     font-weight: 700;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -619,7 +619,7 @@
     margin-top: 0;
     margin-bottom: 16px;
     color: var(--text-primary);
-    font-size: 1rem;
+    font-size: 1.3rem;
     font-weight: 700;
     padding-bottom: 12px;
     border-bottom: var(--border-glass);
@@ -627,7 +627,7 @@
 
 .report-card p {
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 1.2rem;
 }
 
 .mistake-item {
@@ -644,21 +644,21 @@
     font-weight: 600;
     text-decoration: line-through;
     margin-bottom: 4px;
-    font-size: 0.9rem;
+    font-size: 1rem;
 }
 
 .corrected-text {
     display: block;
     color: #4ade80;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 1.2rem;
 }
 
 .explanation {
     display: block;
     margin-top: 6px;
     color: var(--text-secondary);
-    font-size: 0.82rem;
+    font-size: 1.2rem;
     font-style: italic;
 }
 
@@ -675,26 +675,26 @@
     color: var(--text-primary);
     display: block;
     margin-bottom: 4px;
-    font-size: 0.9rem;
+    font-size: 1.05rem;
 }
 
 .vocab-better {
     color: #a5b4fc;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 1rem;
 }
 
 .comment-box {
     background: rgba(99, 102, 241, 0.08);
     border: 1px solid rgba(99, 102, 241, 0.2);
-    padding: 18px;
+    padding: 22px;
     border-radius: 14px;
     margin-top: 24px;
     color: #a5b4fc;
     font-style: italic;
     text-align: center;
-    font-size: 0.95rem;
-    line-height: 1.6;
+    font-size: 1.25rem;
+    line-height: 1.7;
 }
 
 .back-btn {

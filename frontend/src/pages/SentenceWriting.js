@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import HangingSign from '../components/HangingSign';
 import './SentenceWriting.css';
 import { useToast } from '../context/ToastContext';
@@ -46,7 +46,6 @@ export function SentenceWriting() {
   const [hints, setHints] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [sessionCount, setSessionCount] = useState(0);
   const textareaRef = useRef(null);
 
   const { error: showError, warning: showWarning, success: showSuccess } = useToast();
@@ -103,7 +102,6 @@ export function SentenceWriting() {
       });
       const data = response.data;
       setTranslationFeedback(data.feedback);
-      setSessionCount(prev => prev + 1);
 
       const score = data.feedback?.score || 0;
       if (score >= 80) {

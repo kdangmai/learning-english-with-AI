@@ -22,7 +22,6 @@ export default function Pronunciation() {
     const [voices, setVoices] = useState([]);
     const [level, setLevel] = useState('A1');
     const [generating, setGenerating] = useState(false);
-    const [sessionCount, setSessionCount] = useState(0);
     const [speechRate, setSpeechRate] = useState(1);
 
     const mediaRecorderRef = useRef(null);
@@ -140,7 +139,6 @@ export default function Pronunciation() {
             const data = response.data;
             if (data.success) {
                 setAnalysis(data);
-                setSessionCount(prev => prev + 1);
             } else {
                 setError(data.message || 'Phân tích thất bại.');
             }

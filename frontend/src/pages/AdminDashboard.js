@@ -895,7 +895,6 @@ export default function AdminDashboard() {
                                 { key: 'pronunciation_gen_model', label: '🔄 Tạo Câu Luyện Nói', desc: 'Sinh câu mẫu để luyện phát âm.', group: 'pron' }
                             ].map(item => {
                                 const isChanged = config[item.key] !== originalConfig[item.key];
-                                const allModels = [...availableModels, ...openRouterModels];
                                 return (
                                     <div key={item.key} className={`config-card ${isChanged ? 'config-changed' : ''}`}>
                                         <div className="config-info">

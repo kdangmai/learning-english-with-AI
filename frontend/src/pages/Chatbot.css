@@ -297,8 +297,7 @@
 }
 
 .message-bubble.assistant {
-  background: var(--bg-surface);
-  backdrop-filter: blur(var(--glass-blur));
+  background: #f9f6f0;
   color: var(--text-primary);
   border-bottom-left-radius: 4px;
   border: var(--border-glass);
@@ -321,31 +320,143 @@
 }
 
 .message-bubble strong {
-  font-weight: 600;
+  font-weight: 700;
+  color: inherit;
 }
 
 .message-bubble ul,
 .message-bubble ol {
-  margin: 4px 0 8px 0;
+  margin: 6px 0 10px 0;
   padding-left: 20px;
+}
+
+.message-bubble li {
+  margin-bottom: 4px;
+  line-height: 1.6;
+}
+
+.message-bubble li::marker {
+  color: #6366f1;
 }
 
 .message-bubble h1,
 .message-bubble h2 {
   font-size: 1.1rem;
-  font-weight: bold;
+  font-weight: 800;
+  margin: 12px 0 8px 0;
+  color: #6366f1;
+}
+
+.message-bubble h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 10px 0 6px 0;
+  color: #818cf8;
+}
+
+.message-bubble h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 8px 0 4px 0;
+  color: var(--text-primary);
+}
+
+.message-bubble h1:first-child,
+.message-bubble h2:first-child,
+.message-bubble h3:first-child,
+.message-bubble h4:first-child {
+  margin-top: 0;
+}
+
+.message-bubble blockquote {
   margin: 8px 0;
+  padding: 10px 14px;
+  border-left: 3px solid #6366f1;
+  background: rgba(99, 102, 241, 0.06);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.message-bubble blockquote p {
+  margin: 0;
 }
 
 .message-bubble code {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 2px 4px;
+  background: rgba(99, 102, 241, 0.1);
+  padding: 2px 6px;
   border-radius: 4px;
-  font-family: monospace;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.88em;
+  color: #818cf8;
+}
+
+.message-bubble pre {
+  margin: 8px 0;
+  padding: 12px 14px;
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 10px;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.message-bubble pre code {
+  background: none;
+  padding: 0;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.message-bubble table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 0.88rem;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+.message-bubble th {
+  background: rgba(99, 102, 241, 0.12);
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 700;
+  color: #6366f1;
+  border-bottom: 2px solid rgba(99, 102, 241, 0.2);
+}
+
+.message-bubble td {
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.message-bubble tr:nth-child(even) td {
+  background: rgba(99, 102, 241, 0.03);
+}
+
+.message-bubble hr {
+  border: none;
+  height: 1px;
+  background: rgba(99, 102, 241, 0.15);
+  margin: 12px 0;
 }
 
 .message-bubble.user code {
   background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.message-bubble.user li::marker {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.message-bubble.user h1,
+.message-bubble.user h2,
+.message-bubble.user h3,
+.message-bubble.user h4 {
+  color: white;
 }
 
 /* Translation */
@@ -745,7 +856,54 @@
 }
 
 [data-theme="dark"] .message-bubble code {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+}
+
+[data-theme="dark"] .message-bubble pre {
+  background: rgba(2, 6, 23, 0.95);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .message-bubble pre code {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .message-bubble blockquote {
+  background: rgba(99, 102, 241, 0.08);
+  border-left-color: #818cf8;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .message-bubble h1,
+[data-theme="dark"] .message-bubble h2 {
+  color: #a5b4fc;
+}
+
+[data-theme="dark"] .message-bubble h3 {
+  color: #c4b5fd;
+}
+
+[data-theme="dark"] .message-bubble th {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border-bottom-color: rgba(99, 102, 241, 0.25);
+}
+
+[data-theme="dark"] .message-bubble td {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .message-bubble tr:nth-child(even) td {
+  background: rgba(99, 102, 241, 0.05);
+}
+
+[data-theme="dark"] .message-bubble hr {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .message-bubble li::marker {
+  color: #818cf8;
 }
 
 [data-theme="dark"] .translation-bubble {

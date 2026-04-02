@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './Chatbot.css';
 import ConfirmModal from '../components/common/ConfirmModal';
 import useSpeechRecognition from '../hooks/useSpeechRecognition';
@@ -228,7 +229,7 @@ export function Chatbot() {
                 {msg.role === 'assistant' && <div className="avatar">🤖</div>}
                 <div className="message-group">
                   <div className={`message-bubble ${msg.role}`}>
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                     {msg.translation && (
                       <div className="translation-bubble">
                         <small>🇻🇳 {msg.translation}</small>

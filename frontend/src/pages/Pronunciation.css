@@ -760,6 +760,163 @@
     box-shadow: 0 6px 18px rgba(6, 182, 212, 0.4);
 }
 
+/* ====== Instructions ====== */
+.pron-instructions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pron-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.pron-step .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(99, 102, 241, 0.12);
+    color: #6366f1;
+    font-size: 0.7rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* ====== Score Container ====== */
+.pron-score-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* ====== Feedback Bottom Row (self-contained) ====== */
+.feedback-bottom-row {
+    display: grid;
+    grid-template-columns: 35% 65%;
+    gap: 12px;
+    flex: 0 0 45%;
+    min-height: 0;
+    animation: pronFadeUp 0.4s ease both;
+}
+
+.feedback-left-col {
+    background: var(--bg-surface);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    border: var(--border-glass);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow-y: auto;
+}
+
+.feedback-right-col {
+    background: var(--bg-surface);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    border: var(--border-glass);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+}
+
+.feedback-right-col .feedback-details {
+    background: none;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+}
+
+
+.feedback-details {
+    background: var(--bg-surface);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-radius: 18px;
+    padding: 16px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    border: var(--border-glass);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+}
+
+.feedback-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.try-again-btn,
+.next-sentence-btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.try-again-btn {
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    border: var(--border-glass);
+}
+
+.try-again-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.next-sentence-btn {
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+    color: white;
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+}
+
+.next-sentence-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(6, 182, 212, 0.4);
+}
+
+/* ====== Bounce-in Animation ====== */
+.bounce-in {
+    animation: bounceIn 0.5s ease both;
+}
+
+@keyframes bounceIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+
+    60% {
+        transform: scale(1.02) translateY(-2px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
 /* ====== Responsive ====== */
 @media (max-width: 768px) {
     .pronunciation-page {
@@ -1160,4 +1317,37 @@
 
 [data-theme="dark"] .pron-empty-state p {
     color: #64748b;
+}
+
+/* Dark mode: Feedback Layout */
+[data-theme="dark"] .feedback-left-col,
+[data-theme="dark"] .feedback-right-col {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .try-again-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+}
+
+[data-theme="dark"] .try-again-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .next-sentence-btn {
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+}
+
+[data-theme="dark"] .pron-step {
+    color: #cbd5e1;
+}
+
+[data-theme="dark"] .pron-step .step-num {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
 }
